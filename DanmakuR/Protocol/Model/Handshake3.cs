@@ -1,23 +1,26 @@
 ﻿using System.Text.Json.Serialization;
 namespace DanmakuR.Protocol.Model
 {
-	public class Auth
+	/// <summary>
+	/// 可携带身份信息
+	/// </summary>
+	public class Handshake3 : Handshake2
 	{
 		public long? Aid;
-		public long From = 7;
-		public int Type = 3;
+		public long? From;
 
 		[JsonExtensionData]
 		public IDictionary<string, object> AdditionalAuthParams { get; set; }
 
-		public Auth(IDictionary<string, object> authParams)
+		public Handshake3(IDictionary<string, object> authParams)
 		{
 			AdditionalAuthParams = authParams;
 		}
 
-		public void EnsureValid()
+		public new void EnsureValid()
 		{
 			Type = 3;
+			From = From > 0 ? From : 7;
 		}
 	}
 }

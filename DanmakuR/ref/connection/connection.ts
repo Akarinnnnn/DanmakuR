@@ -56,6 +56,15 @@ type CallbackQueues = {
     onReceiveAuthResQueue: Function[];
 };
 
+type HandshakeV3 = {
+	uid: number;
+	roomid: number;
+	protover: number;
+	aid?: number;
+	from?: number;
+};
+
+
 class Message {
     body: any[];
     packetLen: number;
@@ -153,7 +162,8 @@ export class Connection {
 	}
 	userAuthentication() {
 		var opt = this.options;
-		var payload: { uid: number; roomid: number; protover: number; aid?: number; from?: number } =
+
+		var payload: HandshakeV3 =
 		{
 			uid: parseInt(opt.uid, 10),
 			roomid: parseInt(opt.rid, 10),

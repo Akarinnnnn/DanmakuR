@@ -11,7 +11,6 @@ namespace DanmakuR.Protocol.Model
 	[JsonNumberHandling(JsonNumberHandling.Strict)]
 	public class Handshake2
 	{
-
 		/// <summary>
 		/// 房间号
 		/// </summary>

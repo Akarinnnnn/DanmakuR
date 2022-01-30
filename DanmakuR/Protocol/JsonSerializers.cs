@@ -6,7 +6,7 @@ using DanmakuR.Protocol.Model;
 namespace DanmakuR.Protocol
 {
 	[JsonSerializable(typeof(Handshake2))]
-	[JsonSerializable(typeof(Auth))]
+	[JsonSerializable(typeof(Handshake3))]
 	[JsonSourceGenerationOptions(IgnoreReadOnlyFields = false, WriteIndented = false, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 	internal partial class HandshakeJsonContext : JsonSerializerContext
 	{
