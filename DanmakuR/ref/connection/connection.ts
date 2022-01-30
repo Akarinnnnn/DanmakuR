@@ -24,8 +24,8 @@ export class ConnectionOptions {
 	customAuthParam: any[] = [];
 	fallback: Function;
 	heartBeatInterval: number = 30;
-	onReceivedMessage: Function[];
-	onReceiveAuthRes: Function[];
+	onReceivedMessage: Function;
+	onReceiveAuthRes: Function;
 	onHeartBeatReply: Function[];
 	onInitialized: Function[];
 	onOpen: Function[];
@@ -54,6 +54,14 @@ type CallbackQueues = {
     onRetryFallbackQueue: Function[];
     onListConnectErrorQueue: Function[];
     onReceiveAuthResQueue: Function[];
+};
+
+class Message {
+    body: any[];
+    packetLen: number;
+    op: number;
+	ver: number;
+	seq?;
 };
 
 export class Connection {
@@ -215,15 +223,18 @@ export class Connection {
 			e.heartBeat();
 		}, 1e3 * this.options.heartBeatInterval);
 	}
-	onMessage(e) {
+	onMessage(e: Message | Message[] | MessageEvent<ArrayBuffer>) {
 		var t = this;
 		try {
-			var n: { op: number; body: object[]; seq?:number} = this.convertToObject(e.data);
+			var n: typeof e;
+
+			if (e instanceof MessageEvent)
+				n = this.convertToObject(e.data);
 			if (n instanceof Array) {
-				n.forEach(function (e) {
+				n.forEach(function (e: Message) {
 					t.onMessage(e);
 				});
-			} else if (n instanceof Object) {
+			} else if (n instanceof Message) {
 				switch (n.op) {
 					case constants.WS_OP_HEARTBEAT_REPLY:
 						this.onHeartBeatReply(n.body);
@@ -232,7 +243,7 @@ export class Connection {
 						this.onMessageReply(n.body, n.seq);
 						break;
 					case constants.WS_OP_CONNECT_SUCCESS:
-						if (n.body.length !== 0 && n.body[0]) {
+						if (n.body.length !== 0 && n.body[0] && n.body[0].code !== void 0) {
 							switch (n.body[0].code) {
 								case constants.WS_AUTH_OK:
 									this.heartBeat();
@@ -375,10 +386,8 @@ export class Connection {
 	}
 	/**
 	 * deserialize
-	 * @param {ArrayBuffer} buffer 
-	 * @returns {object}
 	 */
-	convertToObject(buffer): { body: any[] | {}; packetLen: number; op: number; ver?: number; } {
+	convertToObject(buffer: ArrayBuffer): Message {
 		var reader = new DataView(buffer);
 		var ret: { body: any[] | {}; packetLen?: number; op?: number; ver?: number;} = { body: [] };
 		ret.packetLen = reader.getInt32(constants.WS_PACKAGE_OFFSET);
@@ -439,7 +448,7 @@ export class Connection {
 				}
 			}
 		}
-		return ret as { body: any[] | {}; packetLen: number; op: number; ver?: number; };
+		return ret as Message;
 	}
 	send(e) {
 		if (this.ws) {
