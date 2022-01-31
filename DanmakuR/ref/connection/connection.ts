@@ -70,7 +70,7 @@ class Message {
     packetLen: number;
     op: number;
 	ver: number;
-	seq?;
+	seq?: number;
 };
 
 export class Connection {
