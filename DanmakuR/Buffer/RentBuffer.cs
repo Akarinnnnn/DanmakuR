@@ -12,10 +12,20 @@ namespace DanmakuR.Buffer
 			get => buff ?? throw new ObjectDisposedException(nameof(RentBuffer));
 		}
 
-		public void Reset(int size)
+		public Span<byte> Span => Buff.AsSpan();
+		public Memory<byte> Memory => Buff.AsMemory();
+
+		public void Reset(int size, bool moveToNew = false)
 		{
+			byte[]? newbuff = null;
 			if (size != 0)
-				buff = ArrayPool<byte>.Shared.Rent(size);
+			{
+				newbuff = ArrayPool<byte>.Shared.Rent(size);
+				if(moveToNew && buff != null)
+					buff.AsSpan().CopyTo(newbuff);
+			}
+			Dispose();
+			buff = newbuff;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -24,7 +34,7 @@ namespace DanmakuR.Buffer
 			if (buff != null)
 			{
 				ArrayPool<byte>.Shared.Return(buff);
-				buff = Array.Empty<byte>();
+				buff = null;
 			}
 		}
 	}

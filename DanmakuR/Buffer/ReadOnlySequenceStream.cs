@@ -11,7 +11,7 @@ namespace DanmakuR.Buffer
 			seq = buffer;
 		}
 
-		public override bool CanRead => !seq.IsEmpty;
+		public override bool CanRead => !seq.IsEmpty && Position != seq.Length;
 		public override bool CanSeek => true;
 		public override bool CanWrite => false;
 		public override long Length => seq.Length;
@@ -29,14 +29,17 @@ namespace DanmakuR.Buffer
 
 		public override int Read(Span<byte> buffer)
 		{
+			if (Position == seq.Length)
+				return 0;
+
 			SequenceReader<byte> r = new(seq);
 			int read;
 			r.Advance(Position);
 			if(r.TryCopyTo(buffer))
 				read = buffer.Length;
 			else
-				read = checked((int)(r.Length - Position));
-			Position += read;
+				read = checked((int)(r.Consumed - Position));
+			Position = r.Consumed;
 			return read;
 		}
 
@@ -61,12 +64,12 @@ namespace DanmakuR.Buffer
 
 		public override void SetLength(long value)
 		{
-			throw new InvalidOperationException();
+			throw new NotSupportedException();
 		}
 
 		public override void Write(byte[] buffer, int offset, int count)
 		{
-			throw new InvalidOperationException();
+			throw new NotSupportedException();
 		}
 
 #pragma warning disable CA1816 // Dispose 方法应调用 SuppressFinalize
