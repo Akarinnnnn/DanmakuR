@@ -34,5 +34,13 @@ namespace DanmakuR
 
 			return builder;
 		}
+		public static IHubConnectionBuilder ConfigureHandshake3(this IHubConnectionBuilder builder, Action<Handshake3> action)
+		{
+			builder.Services.AddOptions<Handshake3>()
+				.Configure(action)
+				.PostConfigure(opt => opt.EnsureValid());
+
+			return builder;
+		}
 	}
 }
