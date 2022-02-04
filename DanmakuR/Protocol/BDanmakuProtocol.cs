@@ -55,7 +55,7 @@ namespace DanmakuR.Protocol
 				if (header.HeaderLength > 16)
 					r.Advance(header.HeaderLength - 16);
 
-				if (header.Version == FrameVersion.Int32BE)
+				if (header.Version == FrameVersion.Int32BE || header.OpCode == OpCode.Pong)
 				{
 					r.TryReadBigEndian(out int value);
 					if (CheckMethodParamTypes(binder, WellKnownMethods.OnPopularity.Name, WellKnownMethods.OnPopularity.ParamTypes))
