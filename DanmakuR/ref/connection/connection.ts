@@ -26,13 +26,13 @@ export class ConnectionOptions {
 	heartBeatInterval: number = 30;
 	onReceivedMessage: Function;
 	onReceiveAuthRes: Function;
-	onHeartBeatReply: Function[];
-	onInitialized: Function[];
-	onOpen: Function[];
-	onClose: Function[];
-	onError: Function[];
-	onListConnectError: Function[];
-    onRetryFallback: Function[];
+	onHeartBeatReply: Function;
+	onInitialized: Function;
+	onOpen: Function;
+	onClose: Function;
+	onError: Function;
+	onListConnectError: Function;
+    onRetryFallback: Function;
 };
 
 export class AuthInfo { origin: object; encode: ArrayBuffer }
