@@ -69,12 +69,12 @@ namespace DanmakuR.Protocol
 				switch (header.Version)
 				{
 					case FrameVersion.Deflate:
-							if (!TryDecompressDeflate(ref payload))
-								return false;
+						if (!payload.TryDecompressDeflate())
+							return false;
 						break;
 					case FrameVersion.Brotli:
-							if (!TryDecompressBrotli(ref payload))
-								return false;
+						if (!payload.TryDecompressBrotli())
+							return false;
 						break;
 					case FrameVersion.Json:
 						break;
@@ -99,112 +99,6 @@ namespace DanmakuR.Protocol
 			return types.SequenceEqual(actualTypes);
 		}
 
-		private static bool TryDecompressDeflate(ref ReadOnlySequence<byte> payload)
-		{
-			try
-			{
-				using DeflateStream stream = new(new ReadOnlySequenceStream(ref payload), CompressionMode.Decompress);
-				int estmateSize = checked((int)payload.Length) * 2;
-				if (estmateSize > 4096) estmateSize = 4096;
-
-				RentBuffer decompressed = new();
-				decompressed.Reset(estmateSize);
-				int decodedLength = stream.Read(decompressed.Buff.AsSpan());
-				if (!stream.CanRead)
-				{
-					payload = new(decompressed.Buff.AsMemory(16));
-				}
-				else
-				{
-					long pos = decodedLength;
-					SimpleSegment first = new(decompressed.Buff, 0);
-					SimpleSegment? last = null;
-					while (stream.CanRead)
-					{
-						byte[] part = new byte[8192];
-						int read = stream.Read(part.AsSpan());
-						pos += read;
-						last = last?.SetNext(part.AsMemory(0, read), pos) ?? first.SetNext(part.AsMemory(0, read), pos);
-					}
-					if (last != null)
-						payload = new ReadOnlySequence<byte>(first, 0, last, last.Memory.Length);
-					else
-						payload = new ReadOnlySequence<byte>(first.Memory);
-				}
-
-			}
-			catch (Exception)
-			{
-				return false;
-			}
-			return true;
-		}
-
-		private static bool TryDecompressBrotli(ref ReadOnlySequence<byte> payload)
-		{
-			RentBuffer decompressed = new();
-			using BrotliDecoder decoder = new();
-			int estmateSize = checked((int)payload.Length) * 3;
-
-			if (payload.IsSingleSegment)
-			{
-				if (estmateSize > 4096) estmateSize = 4096;
-				int totalConsumed = 0;
-				int totalWritten = 0;
-			rerun:
-				decompressed.Reset(estmateSize, true);
-
-				var status = decoder.Decompress(payload.FirstSpan[totalConsumed..], decompressed.Span[totalWritten..],
-					out int consumed, out int written);
-				switch (status)
-				{
-					case OperationStatus.Done:
-						payload = new(decompressed.Buff.AsMemory(0, written));
-						return true;
-					case OperationStatus.DestinationTooSmall:
-						totalConsumed += consumed;
-						totalWritten += written;
-						estmateSize += (payload.FirstSpan.Length - totalConsumed) * 4;
-						goto rerun;
-					case OperationStatus.NeedMoreData:
-					case OperationStatus.InvalidData:
-					default:
-						return false;
-				}
-			}
-			else
-			{
-				SimpleSegment first;
-				SimpleSegment? last = null;
-				if (estmateSize > 8192) estmateSize = 16384;
-				byte[] firstbuffer = new byte[estmateSize];
-				// begin = new(firstbuffer, 0);
-				SequenceReader<byte> payloadr = new(payload);
-				using RentBuffer middle = new();
-				middle.Reset(64);
-
-				ReadOnlySpan<byte> currentSpan = payloadr.CurrentSpan;
-				Span<byte> target = firstbuffer;
-				var status = decoder.Decompress(currentSpan, target, out int consumed, out int written);
-				first = new(firstbuffer.AsMemory(0, written), 0);
-				if (status == OperationStatus.InvalidData)
-				{
-					return false;
-				}
-				while (status != OperationStatus.Done)
-				{
-					int remaining = currentSpan.Length - consumed;
-					currentSpan[consumed..].CopyTo(middle.Span);
-					// TODO
-				}
-
-				if (last != null)
-					payload = new ReadOnlySequence<byte>(first, 0, last, last.Memory.Length);
-				else
-					payload = new ReadOnlySequence<byte>(first.Memory);
-				return true;
-			}
-		}
 
 		public void WriteMessage(HubMessage message, IBufferWriter<byte> output)
 		{
