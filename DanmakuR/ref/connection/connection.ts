@@ -1,10 +1,10 @@
-import * as constants from 'constants'
-import * as headerdef from 'frameheaderdef'
-import { HeaderField } from 'frameheaderdef'
+import * as constants from './constants'
+import * as headerdef from './frameheaderdef'
+import { HeaderField } from './frameheaderdef'
 import {
 	getDecoder, getEncoder, callFunction,
 	extend, mergeArrayBuffer
-} from 'utilities'
+} from './utilities'
 
 export class ConnectionOptions {
 	url: string = '';
@@ -50,7 +50,7 @@ type CallbackQueues = {
     onCloseQueue: Function[];
     onErrorQueue: Function[];
     onReceivedMessageQueue: Function[];
-    onHeartBeatReplyQueue: Function[];
+    onHeartBeatReplyQueue: ((e: PopularityMessage) => void)[];
     onRetryFallbackQueue: Function[];
     onListConnectErrorQueue: Function[];
     onReceiveAuthResQueue: Function[];
@@ -64,13 +64,21 @@ type HandshakeV3 = {
 	from?: number;
 };
 
+interface Message {
+	cmd: string;
+}
 
-class Message {
-    body: any[];
+interface PopularityMessage {
+	count: number;
+}
+
+interface Packet {
+    body: Packet[] | Message | PopularityMessage;
     packetLen: number;
     op: number;
 	ver: number;
 	seq?: number;
+	count?: number;
 };
 
 export class Connection {
@@ -84,7 +92,7 @@ export class Connection {
     ws: WebSocket;
     encoder: TextEncoder;
     decoder: TextDecoder;
-	constructor(opt) {
+	constructor(opt: any) {
 		if (Connection.checkOptions(opt)) {
 			var defaultopt = new ConnectionOptions;
 			// n[5].a.extend
@@ -118,13 +126,10 @@ export class Connection {
 			);
 		}
 	}
-	initialize(e) {
+	initialize(e: string | URL) {
 		var t = this;
 		var opt = this.options;
 		try {
-			/**
-			 * @type {WebSocket} 
-			 */
 			this.ws = new WebSocket(e);
 			this.ws.binaryType = 'arraybuffer';
 			this.ws.onopen = this.onOpen.bind(this);
@@ -233,7 +238,15 @@ export class Connection {
 			e.heartBeat();
 		}, 1e3 * this.options.heartBeatInterval);
 	}
-	onMessage(e: Message | Message[] | MessageEvent<ArrayBuffer>) {
+
+	static isMessage(m: any): m is Packet {
+		return "body" in m && typeof m.body === "object" &&
+			"packetLen" in m && typeof m.packetLen === "number" &&
+			"op" in m && typeof m.op === "number" &&
+			"ver" in m && typeof m.ver === "number";
+	}
+
+	onMessage(e: Packet | Packet[] | MessageEvent<ArrayBuffer>) {
 		var t = this;
 		try {
 			var n: typeof e;
@@ -241,19 +254,19 @@ export class Connection {
 			if (e instanceof MessageEvent)
 				n = this.convertToObject(e.data);
 			if (n instanceof Array) {
-				n.forEach(function (e: Message) {
+				n.forEach(function (e: Packet) {
 					t.onMessage(e);
 				});
-			} else if (n instanceof Message) {
+			} else if (Connection.isMessage(n)) {
 				switch (n.op) {
 					case constants.WS_OP_HEARTBEAT_REPLY:
-						this.onHeartBeatReply(n.body);
+						this.onHeartBeatReply(n.body as PopularityMessage);
 						break;
 					case constants.WS_OP_MESSAGE:
 						this.onMessageReply(n.body, n.seq);
 						break;
 					case constants.WS_OP_CONNECT_SUCCESS:
-						if (n.body.length !== 0 && n.body[0] && n.body[0].code !== void 0) {
+						if ((n.body as {code?:number}[]).length !== 0 && n.body[0]?.code !== void 0) {
 							switch (n.body[0].code) {
 								case constants.WS_AUTH_OK:
 									this.heartBeat();
@@ -278,7 +291,7 @@ export class Connection {
 		}
 		return this;
 	}
-	onMessageReply(e: Function[] | object , t) {
+	onMessageReply(e: Function[] | object , t: number) {
 		var n = this;
 		try {
 			if (e instanceof Array) {
@@ -293,13 +306,13 @@ export class Connection {
 			console.error('On Message Resolve Error: ', e);
 		}
 	}
-	onHeartBeatReply(e) {
+	onHeartBeatReply(e: PopularityMessage) {
 		callFunction(
 			this.callbackQueueList.onHeartBeatReplyQueue,
 			e
 		);
 	}
-	onClose(e?) {
+	onClose(e?: { code: number; }) {
 		var t = this;
 		if (e.code > 1001) {
 			callFunction(this.callbackQueueList.onErrorQueue, e);
@@ -346,7 +359,7 @@ export class Connection {
 			return this;
 		}
 	}
-	onError(e) {
+	onError(e: any) {
 		console.error('Danmaku Websocket On Error.', e);
 		return this;
 	}
@@ -369,7 +382,7 @@ export class Connection {
 	 * @param {number} opcode 
 	 * @returns {ArrayBuffer}
 	 */
-	convertToArrayBuffer(payload, opcode) {
+	convertToArrayBuffer(payload: any, opcode: number): ArrayBuffer {
 		if (!this.encoder) {
 			/** @type {TextEncoder} */
 			this.encoder = getEncoder();
@@ -397,16 +410,16 @@ export class Connection {
 	/**
 	 * deserialize
 	 */
-	convertToObject(buffer: ArrayBuffer): Message {
+	convertToObject(buffer: ArrayBuffer): Packet {
 		var reader = new DataView(buffer);
-		var ret: { body: any[] | {}; packetLen?: number; op?: number; ver?: number;} = { body: [] };
+		var ret: Partial<Packet> = { body: [] };
 		ret.packetLen = reader.getInt32(constants.WS_PACKAGE_OFFSET);
 		//#region parse header
-		this.wsBinaryHeaderList.forEach(function (e) {
-			if (e.bytes === 4) {
-				ret[e.key] = reader.getInt32(e.offset);
-			} else if (e.bytes === 2) {
-				ret[e.key] = reader.getInt16(e.offset);
+		this.wsBinaryHeaderList.forEach(function (fielddef) {
+			if (fielddef.bytes === 4) {
+				ret[fielddef.key] = reader.getInt32(fielddef.offset);
+			} else if (fielddef.bytes === 2) {
+				ret[fielddef.key] = reader.getInt16(fielddef.offset);
 			}
 		});
 		//#endregion
@@ -429,10 +442,10 @@ export class Connection {
 		} else {
 			var currentPos = constants.WS_PACKAGE_OFFSET;
 			/** @type {number} */
-			var currentPacketLen = ret.packetLen;
+			var currentPacketLen: number = ret.packetLen;
 			/** @type {number} */
-			var currentHeaderLen = 0;
-			for (/** @type {object} */var parsed; currentPos < buffer.byteLength; currentPos += currentPacketLen) {
+			var currentHeaderLen: number = 0;
+			for (var parsed: Packet[]; currentPos < buffer.byteLength; currentPos += currentPacketLen) {
 				currentPacketLen = reader.getInt32(currentPos);
 				currentHeaderLen = reader.getInt16(currentPos + constants.WS_HEADER_OFFSET);
 				try {
@@ -442,11 +455,11 @@ export class Connection {
 					} else if (ret.ver === constants.WS_BODY_PROTOCOL_VERSION_BROTLI) {
 						var realJson = buffer.slice(currentPos + currentHeaderLen, currentPos + currentPacketLen);
 						function BrotliDecode(buff: Uint8Array): { buffer: ArrayBuffer;} { throw null };
-						var h = BrotliDecode(new Uint8Array(realJson));
-						parsed = this.convertToObject(h.buffer).body;
+						var decoded = BrotliDecode(new Uint8Array(realJson));
+						parsed = this.convertToObject(decoded.buffer).body as Packet[];
 					}
 					if (parsed) {
-						(ret.body as any[]).push(parsed);
+						(ret.body as Packet[]).push(...parsed);
 					}
 				} catch (e) {
 					console.error(
@@ -458,14 +471,14 @@ export class Connection {
 				}
 			}
 		}
-		return ret as Message;
+		return ret as Packet;
 	}
-	send(e) {
+	send(e: string | ArrayBufferLike | Blob | ArrayBufferView) {
 		if (this.ws) {
 			this.ws.send(e);
 		}
 	}
-	addCallback(callback, queue) {
+	addCallback(callback: Function, queue: any[]) {
 		if (typeof callback == 'function' && queue instanceof Array) {
 			queue.push(callback);
 		}
@@ -504,7 +517,7 @@ export class Connection {
 		}
 		return t;
 	}
-	static checkOptions(opt) {
+	static checkOptions(opt: { url: any; rid: any; }) {
 		if (opt || opt instanceof Object) {
 			if (opt.url) {
 				return (

@@ -1,6 +1,6 @@
 ﻿// frame header fields
 
-import * as constants from 'constants'
+import * as constants from './constants'
 
 export interface HeaderField {
 	name: string;
