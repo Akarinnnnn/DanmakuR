@@ -125,7 +125,6 @@ namespace DanmakuR.Buffer
 				SequenceReader<byte> payloadr = new(data);
 				using RentBuffer middle = new();
 				middle.Reset(64);
-				Span<byte> nextbuff;
 
 				ReadOnlySpan<byte> currentSpan = payloadr.CurrentSpan;
 				Span<byte> target = firstbuffer;
@@ -141,9 +140,7 @@ namespace DanmakuR.Buffer
 				{
 					int remaining = currentSpan.Length - consumed;
 					estmateSize -= consumed;
-
-					//byte[] nextbuff = new byte[Math.Min(estmateSize, 8192)];
-
+					byte[] nextbuff = new byte[Math.Min(estmateSize, 8192)];
 					// 接起第一段剩下的和下一段的开头，放到middle中
 					currentSpan[consumed..].CopyTo(middle.Span);
 					currentSpan = payloadr.CurrentSpan;
