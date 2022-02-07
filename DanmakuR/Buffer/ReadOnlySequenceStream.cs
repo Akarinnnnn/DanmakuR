@@ -24,6 +24,7 @@ namespace DanmakuR.Buffer
 
 		public override int Read(byte[] buffer, int offset, int count)
 		{
+			ValidateBufferArguments(buffer, offset, count);
 			return Read(new Span<byte>(buffer, offset, count));
 		}
 
