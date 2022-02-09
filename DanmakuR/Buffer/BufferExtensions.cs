@@ -119,19 +119,20 @@ namespace DanmakuR.Buffer
 			}
 			else
 			{
-				SimpleSegment first;
+				SimpleSegment? first = null;
 				SimpleSegment? last = null;
 
 				byte[] firstbuffer = new byte[estmatedBuffSize];
-				long totalWritten = 0;
+				long totalWritten;
 				SequenceReader<byte> payloadr = new(data);
 				using RentBuffer middle = new();
 
 				ReadOnlySpan<byte> currentSrc = payloadr.CurrentSpan;
 				Span<byte> target = firstbuffer;
 				var status = decoder.Decompress(currentSrc, target, out int consumed, out int written);
-
-				first = new(firstbuffer.AsMemory(0, written), 0);
+				int currentStored = written;
+				totalWritten = written;
+				Memory<byte> currentStore = firstbuffer;
 
 				while (status != OperationStatus.Done)
 				{
@@ -144,9 +145,18 @@ namespace DanmakuR.Buffer
 					// 是否分配下一个缓冲区
 					if (status == OperationStatus.DestinationTooSmall)
 					{
-						var newbuff = new byte[Math.Min(estmatedBuffSize, 16384)];
-						last = last?.SetNext(newbuff, totalWritten) ?? first.SetNext(newbuff, totalWritten);
-						target = newbuff;
+						if (first == null)
+						{
+							first = new(firstbuffer.AsMemory(0, currentStored), 0);
+						}
+						else
+						{
+							last = last?.SetNext(currentStore[..currentStored], totalWritten) ??
+								first.SetNext(currentStore[..currentStored], totalWritten);
+						}
+						currentStore = new byte[Math.Min(estmatedBuffSize, 16384)];
+						currentStored = 0;
+						target = currentStore.Span;
 					}
 					else
 					{
@@ -167,11 +177,12 @@ namespace DanmakuR.Buffer
 						status = decoder.Decompress(middle.Span, target, out consumed, out written);
 						estmatedBuffSize -= consumed;
 						totalWritten += written;
+						currentStored += written;
 						currentSrc = currentSrc[(consumed - remaining)..];
 						switch (status)
 						{
 							case OperationStatus.Done:
-								return;
+								break;
 							case OperationStatus.InvalidData:
 								throw new InvalidDataException();
 							default:
@@ -189,12 +200,13 @@ namespace DanmakuR.Buffer
 					status = decoder.Decompress(currentSrc, target, out consumed, out written);
 					estmatedBuffSize -= consumed;
 					totalWritten += written;
+					currentStored += written;
 				}
 
 				if (last != null)
-					data = new ReadOnlySequence<byte>(first, 0, last, last.Memory.Length);
+					data = new ReadOnlySequence<byte>(first!, 0, last.SetNext(currentStore[..currentStored], totalWritten), currentStored);// first必不为空
 				else
-					data = new ReadOnlySequence<byte>(first.Memory);
+					data = new ReadOnlySequence<byte>(firstbuffer.AsMemory(0, currentStored));
 				return;
 			}
 		}
