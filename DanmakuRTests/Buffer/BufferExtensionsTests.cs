@@ -53,10 +53,9 @@ namespace DanmakuR.Buffer.Tests
 
 			using RentBuffer data = new();
 			data.Reset(8192);
-			Memory<byte> compressed = data.Memory.Slice(0, br.Read(data.Span));
+			Memory<byte> compressed = data.Memory[..br.Read(data.Span)];
 			ReadOnlySequence<byte> seq = new(compressed);
-			Assert.IsTrue(seq.TryDecompressBrotli(), "解压");
-
+			seq.DecompressBrotli();
 			Assert.IsTrue(StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq)), "内容");
 		}
 		
@@ -67,9 +66,9 @@ namespace DanmakuR.Buffer.Tests
 			using FileStream br = File.OpenRead(srcName + ".broken.br");
 			using RentBuffer data = new();
 			data.Reset(8192);
-			Memory<byte> compressed = data.Memory.Slice(0, br.Read(data.Span));
+			Memory<byte> compressed = data.Memory[..br.Read(data.Span)];
 			ReadOnlySequence<byte> seq = new(compressed);
-			Assert.IsFalse(seq.TryDecompressBrotli(), "不报错");
+			Assert.ThrowsException<InvalidDataException>(() => seq.DecompressBrotli());
 		}
 
 		[DataRow("data/BDanmakuProtocol.cs")]
@@ -84,14 +83,12 @@ namespace DanmakuR.Buffer.Tests
 
 			using RentBuffer data = new();
 			data.Reset(8192);
-			Memory<byte> compressed = data.Memory.Slice(0, br.Read(data.Span));
+			Memory<byte> compressed = data.Memory[..br.Read(data.Span)];
 			int midpoint = compressed.Length / 2;
-			ReadOnlySequence<byte> seq = new(
-				new SimpleSegment(compressed[..midpoint],0),
-				0, 
-				new SimpleSegment(compressed[midpoint..],0),
-				compressed.Length - midpoint);
-			Assert.IsTrue(seq.TryDecompressBrotli(), "解压");
+			SimpleSegment first = new (compressed[..midpoint], 0);
+			SimpleSegment last = first.SetNext(compressed[midpoint..], midpoint);
+			ReadOnlySequence<byte> seq = new(first, 0, last, last.Memory.Length);
+			seq.DecompressBrotli();
 
 			Assert.IsTrue(StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq)), "内容");
 		}

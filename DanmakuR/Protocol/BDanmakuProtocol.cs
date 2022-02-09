@@ -15,10 +15,11 @@ namespace DanmakuR.Protocol
 {
 	internal class BDanmakuProtocol : IHubProtocol
 	{
+		[SuppressMessage("CodeQuality", "IDE0052:删除未读的私有成员", Justification = "之后可能有用")]
 		private readonly BDanmakuOptions options;
 		public string Name => typeof(BDanmakuProtocol).FullName!;
 		public int Version => 0;
-		public TransferFormat TransferFormat => TransferFormat.Binary | TransferFormat.Text;
+		public TransferFormat TransferFormat => TransferFormat.Binary;
 		public BDanmakuProtocol(IOptions<BDanmakuOptions> opt)
 		{
 			options = opt.Value;
@@ -69,12 +70,10 @@ namespace DanmakuR.Protocol
 				switch (header.Version)
 				{
 					case FrameVersion.Deflate:
-						if (!payload.TryDecompressDeflate())
-							return false;
+						payload.DecompressDeflate();
 						break;
 					case FrameVersion.Brotli:
-						if (!payload.TryDecompressBrotli())
-							return false;
+						payload.DecompressBrotli();
 						break;
 					case FrameVersion.Json:
 						break;
