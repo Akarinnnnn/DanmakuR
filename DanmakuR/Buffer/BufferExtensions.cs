@@ -128,13 +128,15 @@ namespace DanmakuR.Buffer
 				SimpleSegment? last = null;
 
 				byte[] firstbuffer = new byte[estmatedBuffSize];
+				long runningIndex = 0;
 				long totalWritten;
-				SequenceReader<byte> payloadr = new(data);
+				SequenceReader<byte> datar = new(data);
 				using RentBuffer middle = new();
 
-				ReadOnlySpan<byte> currentSrc = payloadr.CurrentSpan;
+				ReadOnlySpan<byte> currentSrc = datar.CurrentSpan;
 				Span<byte> target = firstbuffer;
 				var status = decoder.Decompress(currentSrc, target, out int consumed, out int written);
+				datar.Advance(consumed);
 				int currentStored = written;
 				totalWritten = written;
 				Memory<byte> currentStore = firstbuffer;
@@ -144,19 +146,17 @@ namespace DanmakuR.Buffer
 					if (status == OperationStatus.InvalidData)
 						throw new InvalidDataException();
 
-					int remaining = currentSrc.Length - consumed;
-					estmatedBuffSize -= consumed;
-					totalWritten += written;
 					// 是否分配下一个缓冲区
 					if (status == OperationStatus.DestinationTooSmall)
 					{
+						runningIndex = totalWritten;
 						if (first == null)
 						{
 							first = new(firstbuffer.AsMemory(0, currentStored), 0);
 						}
 						else
 						{
-							last = (last ?? first).SetNext(currentStore[..currentStored], totalWritten);
+							last = (last ?? first).SetNext(currentStore[..currentStored], runningIndex);
 						}
 						currentStore = new byte[Math.Min(estmatedBuffSize, 16384)];
 						currentStored = 0;
@@ -167,14 +167,16 @@ namespace DanmakuR.Buffer
 						// 切一下算了
 						target = target[written..];
 					}
+
 					// 第一段有点剩的
 					// 接起第一段剩下的和下一段的开头，放到middle中
 					if (status == OperationStatus.NeedMoreData && currentSrc.Length != consumed)
 					{
 						middle.Reset(256);
 						currentSrc[consumed..].CopyTo(middle.Span);
-						payloadr.Advance(currentSrc.Length);
-						currentSrc = payloadr.CurrentSpan;
+						datar.Advance(currentSrc.Length - consumed);
+						currentSrc = datar.UnreadSpan;
+						int remaining = 256 + consumed - currentSrc.Length;
 						currentSrc[..remaining].CopyTo(middle.Span[remaining..]);
 
 						// 解压中间部分
@@ -193,24 +195,21 @@ namespace DanmakuR.Buffer
 								continue;
 						}
 					}
-					else
-					{
-						payloadr.Advance(consumed);
-						currentSrc = payloadr.CurrentSpan;
-					}
 
+					currentSrc = datar.UnreadSpan;
 
 					// 解压
 					status = decoder.Decompress(currentSrc, target, out consumed, out written);
 					estmatedBuffSize -= consumed;
 					totalWritten += written;
 					currentStored += written;
+					datar.Advance(consumed);
 				}
 
 				if (first != null)
 					data = new ReadOnlySequence<byte>(first, 0,
-						(last ?? first).SetNext(currentStore[..currentStored], totalWritten),
-						currentStored);// first必不为空
+						(last ?? first).SetNext(currentStore[..currentStored], runningIndex),
+						currentStored);
 				else
 					data = new ReadOnlySequence<byte>(firstbuffer.AsMemory(0, unchecked((int)totalWritten)));
 				return;
