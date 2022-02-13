@@ -17,6 +17,9 @@ namespace DanmakuR.Buffer
 
 		public void Reset(int size, bool moveToNew = false)
 		{
+			if (buff != null && size == buff.Length)
+				return;
+
 			byte[]? newbuff = null;
 			if (size != 0)
 			{
