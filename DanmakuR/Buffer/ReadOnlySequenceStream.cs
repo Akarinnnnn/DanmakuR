@@ -30,17 +30,21 @@ namespace DanmakuR.Buffer
 
 		public override int Read(Span<byte> buffer)
 		{
-			if (Position == seq.Length)
+			if (Position >= seq.Length)
 				return 0;
 
 			SequenceReader<byte> r = new(seq);
 			int read;
 			r.Advance(Position);
+
+			if(r.Remaining < buffer.Length)
+				buffer = buffer[..unchecked((int)r.Remaining)];
+
 			if(r.TryCopyTo(buffer))
 				read = buffer.Length;
 			else
-				read = checked((int)(r.Consumed - Position));
-			Position = r.Consumed;
+				read = 0;
+			Position += read;
 			return read;
 		}
 

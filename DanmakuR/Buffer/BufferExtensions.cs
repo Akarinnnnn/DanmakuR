@@ -50,28 +50,33 @@ namespace DanmakuR.Buffer
 		/// <exception cref="InvalidDataException"><paramref name="data"/>包含无效数据</exception>
 		public static void DecompressDeflate(ref this ReadOnlySequence<byte> data)
 		{
-			using DeflateStream stream = new(new ReadOnlySequenceStream(ref data), CompressionMode.Decompress);
-			int estmateSize = checked((int)data.Length) * 2;
-			if (estmateSize > 4096) estmateSize = 4096;
+			ReadOnlySequenceStream src = new (ref data);
+			using DeflateStream decoder = new(src, CompressionMode.Decompress);
+			int estmatedBuffSize = unchecked((int)Math.Min(data.Length * 3, 16384));
 
-			RentBuffer decompressed = new();
-			decompressed.Reset(estmateSize);
-			int decodedLength = stream.Read(decompressed.Buff.AsSpan());
-			if (!stream.CanRead)
+			Memory<byte> currentDecompressed = new byte[estmatedBuffSize];
+			int decodedLength = decoder.Read(currentDecompressed.Span);
+			int isended = decoder.ReadByte();
+			if (isended == -1)
 			{
-				data = new(decompressed.Buff.AsMemory(16));
+				data = new(currentDecompressed[..decodedLength]);
 			}
 			else
 			{
-				long pos = decodedLength;
-				SimpleSegment first = new(decompressed.Buff, 0);
+				long totalWritten = decodedLength;
+				SimpleSegment first = new(currentDecompressed[..decodedLength], 0);
 				SimpleSegment? last = null;
-				while (stream.CanRead)
+				while (isended != -1)
 				{
-					byte[] part = new byte[8192];
-					int read = stream.Read(part.AsSpan());
-					pos += read;
-					last = last?.SetNext(part.AsMemory(0, read), pos) ?? first.SetNext(part.AsMemory(0, read), pos);
+					estmatedBuffSize = unchecked((int)Math.Min((data.Length - src.Position) * 3, 16384));
+					if (estmatedBuffSize == 0) estmatedBuffSize = 4096;
+					currentDecompressed = new byte[estmatedBuffSize];
+					currentDecompressed.Span[0] = (byte)isended;
+					decodedLength = decoder.Read(currentDecompressed.Span[1..]);
+					last = last?.SetNext(currentDecompressed[..(decodedLength + 1)], totalWritten) ??
+						first.SetNext(currentDecompressed[..(decodedLength + 1)], totalWritten);
+					totalWritten += decodedLength + 1;
+					isended = decoder.ReadByte();
 				}
 				if (last != null)
 					data = new ReadOnlySequence<byte>(first, 0, last, last.Memory.Length);
@@ -151,8 +156,7 @@ namespace DanmakuR.Buffer
 						}
 						else
 						{
-							last = last?.SetNext(currentStore[..currentStored], totalWritten) ??
-								first.SetNext(currentStore[..currentStored], totalWritten);
+							last = (last ?? first).SetNext(currentStore[..currentStored], totalWritten);
 						}
 						currentStore = new byte[Math.Min(estmatedBuffSize, 16384)];
 						currentStored = 0;
@@ -203,10 +207,12 @@ namespace DanmakuR.Buffer
 					currentStored += written;
 				}
 
-				if (last != null)
-					data = new ReadOnlySequence<byte>(first!, 0, last.SetNext(currentStore[..currentStored], totalWritten), currentStored);// first必不为空
+				if (first != null)
+					data = new ReadOnlySequence<byte>(first, 0,
+						(last ?? first).SetNext(currentStore[..currentStored], totalWritten),
+						currentStored);// first必不为空
 				else
-					data = new ReadOnlySequence<byte>(firstbuffer.AsMemory(0, currentStored));
+					data = new ReadOnlySequence<byte>(firstbuffer.AsMemory(0, unchecked((int)totalWritten)));
 				return;
 			}
 		}

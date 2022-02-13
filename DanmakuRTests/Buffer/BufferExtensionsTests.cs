@@ -12,7 +12,7 @@ namespace DanmakuR.Buffer.Tests
 {
 	internal static class StreamHelpers
 	{
-		public static bool AreEqual(Stream excepted, Stream actual)
+		public static void AreEqual(Stream excepted, Stream actual)
 		{
 			// ArrayPool<byte>.Shared.Rent
 			using RentBuffer buffE = new();
@@ -20,15 +20,16 @@ namespace DanmakuR.Buffer.Tests
 			buffE.Reset(8192);
 			buffA.Reset(8192);
 			int readE = 0, readA = 0;
+			if (excepted.Length != actual.Length) throw new AssertFailedException($"excepted.Length[{excepted.Length}] != actual.Length[{actual.Length}].");
+
 			while ((readE = excepted.Read(buffE.Span)) != 0 && (readA = actual.Read(buffA.Span)) != 0)
 			{
 				if(readE != readA)
-					return false;
+					throw new AssertFailedException($"read: {readE} != {readA}.");
 
-				if(!MemoryExtensions.SequenceEqual(buffE.Span[0..readE], buffA.Span[0..readA]))
-					return false;
+				if (!MemoryExtensions.SequenceEqual(buffE.Span[0..readE], buffA.Span[0..readA]))
+					throw new AssertFailedException($"Difference between [{excepted.Length}..{excepted.Length + readE}].");
 			}
-			return true;
 		}
 	}
 
@@ -56,7 +57,7 @@ namespace DanmakuR.Buffer.Tests
 			Memory<byte> compressed = data.Memory[..br.Read(data.Span)];
 			ReadOnlySequence<byte> seq = new(compressed);
 			seq.DecompressBrotli();
-			Assert.IsTrue(StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq)), "内容");
+			StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq));
 		}
 		
 		[DataRow("data/BDanmakuProtocol.cs")]
@@ -90,7 +91,7 @@ namespace DanmakuR.Buffer.Tests
 			ReadOnlySequence<byte> seq = new(first, 0, last, last.Memory.Length);
 			seq.DecompressBrotli();
 
-			Assert.IsTrue(StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq)), "内容");
+			StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq));
 		}
 	}
 
@@ -118,7 +119,7 @@ namespace DanmakuR.Buffer.Tests
 			Memory<byte> compressed = data.Memory[..br.Read(data.Span)];
 			ReadOnlySequence<byte> seq = new(compressed);
 			seq.DecompressDeflate();
-			Assert.IsTrue(StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq)), "内容");
+			StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq));
 		}
 
 		[DataRow("data/BDanmakuProtocol.cs")]
@@ -152,7 +153,7 @@ namespace DanmakuR.Buffer.Tests
 			ReadOnlySequence<byte> seq = new(first, 0, last, last.Memory.Length);
 			seq.DecompressDeflate();
 
-			Assert.IsTrue(StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq)), "内容");
+			StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq));
 		}
 
 	}
