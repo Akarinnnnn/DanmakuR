@@ -3,12 +3,15 @@ using System.Runtime.CompilerServices;
 
 namespace DanmakuR.Buffer
 {
-	public struct RentBuffer : IDisposable
+	/// <summary>
+	/// 从<see cref="ArrayPool{T}"/>租用缓冲区
+	/// </summary>
+	public ref struct RentBuffer
 	{
 		private byte[]? buff = null;
 		public byte[] Buff
 		{
-			[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+			[MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.AggressiveInlining)]
 			get => buff ?? throw new ObjectDisposedException(nameof(RentBuffer));
 		}
 
@@ -25,13 +28,21 @@ namespace DanmakuR.Buffer
 			{
 				newbuff = ArrayPool<byte>.Shared.Rent(size);
 				if(moveToNew && buff != null)
-					buff.AsSpan().CopyTo(newbuff);
+				{
+					if (size >= buff.Length)
+						buff.AsSpan().CopyTo(newbuff);
+					else
+						buff.AsSpan(0, size).CopyTo(newbuff);
+				}
 			}
 			Dispose();
 			buff = newbuff;
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+		/// <summary>
+		/// 归还缓冲区
+		/// </summary>
+		[MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.AggressiveInlining)]
 		public void Dispose()
 		{
 			if (buff != null)
