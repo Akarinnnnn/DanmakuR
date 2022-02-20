@@ -16,7 +16,7 @@ namespace DanmakuR.Buffer
 			WriteInt16BigEndian(span, (short)header.Version);
 			WriteInt32BigEndian(span, (int)header.OpCode);
 			WriteInt32BigEndian(span, header.SequenceId);
-			buff.Advance(16);
+			buff.Advance(header.HeaderLength);
 		}
 
 		/// <summary>
@@ -34,7 +34,8 @@ namespace DanmakuR.Buffer
 				r.TryReadBigEndian(out header._opcode) &&
 				r.TryReadBigEndian(out header.SequenceId);
 
-			var tail = header.HeaderLength - Unsafe.SizeOf<FrameHeader>();
+			r.Advance(16);
+			var tail = header.HeaderLength - 16;
 			if (tail < 0)
 				return false;
 			if (tail > 0)

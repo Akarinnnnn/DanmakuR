@@ -11,6 +11,7 @@ namespace DanmakuR.Protocol
 		public BDanmakuOptions(IOptions<JsonSerializerOptions?> serializerOptions, IOptions<Handshake2> handshake)
 		{
 			SerializerOptions = serializerOptions.Value	?? new(JsonSerializerDefaults.General);
+			SerializerOptions.AddContext<HandshakeJsonContext>();
 			HandshakeSettings = handshake.Value;
 		}
 	}

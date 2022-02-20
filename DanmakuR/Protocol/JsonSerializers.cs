@@ -13,18 +13,38 @@ namespace DanmakuR.Protocol
 
 	}
 
+	[JsonSerializable(typeof(Negotiate))]
+	[JsonSerializable(typeof(NegotiateData))]
+	[JsonSerializable(typeof(Host))]
+	[JsonSourceGenerationOptions()]
+	internal partial class NegotiateContext : JsonSerializerContext
+	{
+
+	}
+
 	internal static class SerializationExtensions
 	{
+		private static readonly JsonSerializerOptions options;
+		static SerializationExtensions()
+		{
+			options = new(JsonSerializerDefaults.General)
+			{
+				Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+			};
+			options.AddContext<HandshakeJsonContext>();
+			options.AddContext<NegotiateContext>();
+		}
+
 		internal static void Serialize(this Handshake2 handshake, IBufferWriter<byte> buffer)
 		{
 			using Utf8JsonWriter writer = new(buffer);
-			JsonSerializer.Serialize(writer, handshake, typeof(Handshake2), HandshakeJsonContext.Default);
+			JsonSerializer.Serialize(writer, handshake, typeof(Handshake2), options);
 		}
 
 		internal static void Serialize(this Handshake3 handshake3, IBufferWriter<byte> buffer)
 		{
 			using Utf8JsonWriter writer = new(buffer);
-			JsonSerializer.Serialize(writer, handshake3, typeof(Handshake3), HandshakeJsonContext.Default);
+			JsonSerializer.Serialize(writer, handshake3, typeof(Handshake3), options);
 		}
 	}
 }

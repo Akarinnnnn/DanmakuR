@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Http.Connections.Client;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.AspNetCore.SignalR;
 
 using DanmakuR.Protocol;
@@ -12,28 +13,22 @@ namespace DanmakuR
 {
 	public static class DanmakuRExtensions
 	{
-		public static IHubConnectionBuilder UseWebsocketProtocol(this IHubConnectionBuilder builder, Action<HttpConnectionOptions>? configureHttpConnection = null)
+		public static IHubConnectionBuilder UseBDanmakuProtocol(this IHubConnectionBuilder builder)
 		{
-			
+			builder.Services.RemoveAll<IHubProtocol>();
 			builder.Services.AddSingleton<IHubProtocol, BDanmakuProtocol>();
-			builder.WithUrl("ws://broadcastlv.chat.bilibili.com:2244/sub", (opt) =>
-			{
-				configureHttpConnection?.Invoke(opt);
-
-				opt.SkipNegotiation = true;
-				opt.Transports = HttpTransportType.WebSockets;
-			});
 			return builder;
 		}
 
-		public static IHubConnectionBuilder ConfigureHandshake(this IHubConnectionBuilder builder, Action<Handshake2> action)
+		public static IHubConnectionBuilder ConfigureHandshake(this IHubConnectionBuilder builder, Action<Handshake2> configure)
 		{
 			builder.Services.AddOptions<Handshake2>()
-				.Configure(action)
+				.Configure(configure)
 				.PostConfigure(opt => opt.EnsureValid());
 
 			return builder;
 		}
+
 		public static IHubConnectionBuilder ConfigureHandshake3(this IHubConnectionBuilder builder, Action<Handshake3> action)
 		{
 			builder.Services.AddOptions<Handshake3>()
@@ -42,5 +37,7 @@ namespace DanmakuR
 
 			return builder;
 		}
+
+		public static async ValueTask<IHubConnectionBuilder> 
 	}
 }

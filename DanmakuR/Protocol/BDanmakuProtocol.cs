@@ -13,13 +13,22 @@ using System.Text.Json;
 
 namespace DanmakuR.Protocol
 {
-	internal class BDanmakuProtocol : IHubProtocol
+	internal class BDanmakuProtocol
 	{
-		[SuppressMessage("CodeQuality", "IDE0052:删除未读的私有成员", Justification = "之后可能有用")]
+		// int32 framelength, int16 headerlength, int16 version, int32 opcode, int32 seqid
+		private static readonly byte[] ping_message =
+		{
+			0, 0, 0, 16,
+			0, 16,
+			0, 1,
+			0, 0, 0, 2,
+			0, 0, 0, 0
+		};
 		private readonly BDanmakuOptions options;
 		public string Name => typeof(BDanmakuProtocol).FullName!;
 		public int Version => 0;
 		public TransferFormat TransferFormat => TransferFormat.Binary;
+		internal const byte rs = 0x1e;
 		public BDanmakuProtocol(IOptions<BDanmakuOptions> opt)
 		{
 			options = opt.Value;
@@ -34,9 +43,9 @@ namespace DanmakuR.Protocol
 		/// <inheritdoc/>
 		public ReadOnlyMemory<byte> GetMessageBytes(HubMessage message)
 		{
-			ArrayBufferWriter<byte> buff = new(256);
-			WriteMessage(message, buff);
-			return buff.WrittenMemory;
+			if (message is PingMessage) return ping_message;
+
+			return HubProtocolExtensions.GetMessageBytes(this, message);
 		}
 
 		/// <inheritdoc/>
@@ -53,9 +62,6 @@ namespace DanmakuR.Protocol
 			message = null;
 			if (r.TryReadPayloadHeader(out FrameHeader header))
 			{
-				if (header.HeaderLength > 16)
-					r.Advance(header.HeaderLength - 16);
-
 				if (header.Version == FrameVersion.Int32BE || header.OpCode == OpCode.Pong)
 				{
 					r.TryReadBigEndian(out int value);
@@ -98,7 +104,7 @@ namespace DanmakuR.Protocol
 			return types.SequenceEqual(actualTypes);
 		}
 
-
+		/// <inheritdoc/>
 		public void WriteMessage(HubMessage message, IBufferWriter<byte> output)
 		{
 			switch (message)
@@ -106,17 +112,27 @@ namespace DanmakuR.Protocol
 				case HandshakeRequestMessage m:
 					if (m.Protocol == Name && m.Version == Version)
 					{
-						FrameHeader header = new();
-						// TODO: 获取json
-						output.WritePayloadHeader(ref header);
-						// TODO: 写入json
+						switch (options.HandshakeSettings)
+						{
+							case Handshake3 v3:
+								v3.Serialize(output);
+								break;
+							default:
+								options.HandshakeSettings.Serialize(output);
+								break;
+						}						
 					}
 					else
+					{
 						throw new HubException("protocol_mismatch");
+					}
+					break;
+				case HandshakeResponseMessage:
+				case CloseMessage:
+					break;
 
-					break;
 				default:
-					break;
+					throw new HubException("unreconized_message");
 			}
 
 

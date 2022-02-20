@@ -34,7 +34,7 @@ internal struct FrameHeader
 	public short HeaderLength = 16;
 	public short _version;
 	public int _opcode;
-	public int SequenceId = 0;
+	public int SequenceId = 1;
 
 	public OpCode OpCode { get => (OpCode)_opcode; set => _opcode = (int)value; }
 	public FrameVersion Version { get => (FrameVersion)_version; set => _version = (short)value; }
