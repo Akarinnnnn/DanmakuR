@@ -13,7 +13,7 @@ using System.Text.Json;
 
 namespace DanmakuR.Protocol
 {
-	internal class BDanmakuProtocol
+	internal class BDanmakuProtocol : IHubProtocol
 	{
 		// int32 framelength, int16 headerlength, int16 version, int32 opcode, int32 seqid
 		private static readonly byte[] ping_message =
@@ -24,6 +24,7 @@ namespace DanmakuR.Protocol
 			0, 0, 0, 2,
 			0, 0, 0, 0
 		};
+
 		private readonly BDanmakuOptions options;
 		public string Name => typeof(BDanmakuProtocol).FullName!;
 		public int Version => 0;
@@ -34,10 +35,13 @@ namespace DanmakuR.Protocol
 			options = opt.Value;
 		}
 
-		private void TryBindFromJson(ref ReadOnlySequence<byte> json, IInvocationBinder binder, out HubMessage? msg)
+		private ReadOnlySequence<byte> aggreated_messages = ReadOnlySequence<byte>.Empty;
+
+		private bool TryBindFromJson(ref ReadOnlySequence<byte> json, IInvocationBinder binder, out HubMessage? msg)
 		{
 			//TODO: 解析json
 			msg = null;
+			return false;
 		}
 
 		/// <inheritdoc/>
@@ -57,11 +61,17 @@ namespace DanmakuR.Protocol
 		/// <inheritdoc/>
 		public bool TryParseMessage(ref ReadOnlySequence<byte> input, IInvocationBinder binder, [NotNullWhen(true)] out HubMessage? message)
 		{
-			SequenceReader<byte> r = new(input);
+			if (!aggreated_messages.IsEmpty)
+				return TryBindFromJson(ref aggreated_messages, binder, out message);
+
+			SequenceReader<byte> r = new(aggreated_messages.IsEmpty ? aggreated_messages : input);
 			using RentBuffer decompressed = new();
 			message = null;
 			if (r.TryReadPayloadHeader(out FrameHeader header))
 			{
+				ReadOnlySequence<byte> frame = input.Slice(4, header.FrameLength);
+				ReadOnlySequence<byte> payload = frame.Slice(4, header.HeaderLength);
+				input = input.Slice(header.FrameLength + 1);	
 				if (header.Version == FrameVersion.Int32BE || header.OpCode == OpCode.Pong)
 				{
 					r.TryReadBigEndian(out int value);
@@ -72,7 +82,6 @@ namespace DanmakuR.Protocol
 					}
 				}
 
-				ReadOnlySequence<byte> payload = input.Slice(header.HeaderLength);
 				switch (header.Version)
 				{
 					case FrameVersion.Deflate:

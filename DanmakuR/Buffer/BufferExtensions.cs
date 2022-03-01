@@ -34,12 +34,8 @@ namespace DanmakuR.Buffer
 				r.TryReadBigEndian(out header._opcode) &&
 				r.TryReadBigEndian(out header.SequenceId);
 
-			r.Advance(16);
-			var tail = header.HeaderLength - 16;
-			if (tail < 0)
+			if (header.HeaderLength < 16)
 				return false;
-			if (tail > 0)
-				r.Advance(tail);
 
 			return result;
 		}

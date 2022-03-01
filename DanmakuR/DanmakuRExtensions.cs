@@ -15,8 +15,7 @@ namespace DanmakuR
 	{
 		public static IHubConnectionBuilder UseBDanmakuProtocol(this IHubConnectionBuilder builder)
 		{
-			builder.Services.RemoveAll<IHubProtocol>();
-			builder.Services.AddSingleton<IHubProtocol, BDanmakuProtocol>();
+			builder.Services.AddSingleton<BDanmakuProtocol>();
 			return builder;
 		}
 
@@ -38,6 +37,6 @@ namespace DanmakuR
 			return builder;
 		}
 
-		public static async ValueTask<IHubConnectionBuilder> 
+		// public static async ValueTask<IHubConnectionBuilder> 
 	}
 }
