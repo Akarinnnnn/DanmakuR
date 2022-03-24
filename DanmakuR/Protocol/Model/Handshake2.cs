@@ -24,10 +24,10 @@ namespace DanmakuR.Protocol.Model
 		/// </summary>
 		public string? Platform = null;
 		/// <summary>
-		/// 数据包协议版本，为1或2
+		/// 数据包协议版本，1~3
 		/// </summary>
-		/// <remarks>1不使用压缩，2使用压缩</remarks>
-		public int? Protover = 2;
+		/// <remarks>1不使用压缩，2 gzip，3 brotli</remarks>
+		public int? Protover = 3;
 		/// <summary>
 		/// 用户id
 		/// </summary>

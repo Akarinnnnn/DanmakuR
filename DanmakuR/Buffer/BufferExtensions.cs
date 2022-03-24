@@ -8,7 +8,7 @@ namespace DanmakuR.Buffer
 {
 	public static class BufferExtensions
 	{
-		internal static void WritePayloadHeader(this IBufferWriter<byte> buff, ref FrameHeader header)
+		internal static void WriteHeader(this IBufferWriter<byte> buff, ref FrameHeader header)
 		{
 			Span<byte> span = buff.GetSpan(16);
 			WriteInt32BigEndian(span, header.FrameLength);

@@ -11,31 +11,40 @@ using System.IO.Compression;
 using System.Numerics;
 using System.Text.Json;
 
+using Microsoft.AspNetCore.Internal;
+
 namespace DanmakuR.Protocol
 {
 	internal class BDanmakuProtocol : IHubProtocol
 	{
 		// int32 framelength, int16 headerlength, int16 version, int32 opcode, int32 seqid
-		private static readonly byte[] ping_message =
+		private static readonly byte[] ping_message_header =
 		{
 			0, 0, 0, 16,
 			0, 16,
 			0, 1,
 			0, 0, 0, 2,
-			0, 0, 0, 0
+			0, 0, 0, 1
 		};
 
 		private readonly BDanmakuOptions options;
 		public string Name => typeof(BDanmakuProtocol).FullName!;
 		public int Version => 0;
 		public TransferFormat TransferFormat => TransferFormat.Binary;
-		internal const byte rs = 0x1e;
+		internal static readonly byte[] seperators = new byte[0x20];
+
+		private ReadOnlySequence<byte> aggreated_messages = ReadOnlySequence<byte>.Empty;
+		private OpCode package_opcode = OpCode.Invalid;
+		static BDanmakuProtocol()
+		{
+			for (byte i = 0; i < seperators.Length; i++)
+				seperators[i] = i;
+		}
+
 		public BDanmakuProtocol(IOptions<BDanmakuOptions> opt)
 		{
 			options = opt.Value;
 		}
-
-		private ReadOnlySequence<byte> aggreated_messages = ReadOnlySequence<byte>.Empty;
 
 		private bool TryBindFromJson(ref ReadOnlySequence<byte> json, IInvocationBinder binder, out HubMessage? msg)
 		{
@@ -47,7 +56,7 @@ namespace DanmakuR.Protocol
 		/// <inheritdoc/>
 		public ReadOnlyMemory<byte> GetMessageBytes(HubMessage message)
 		{
-			if (message is PingMessage) return ping_message;
+			if (message is PingMessage) return ping_message_header;
 
 			return HubProtocolExtensions.GetMessageBytes(this, message);
 		}
@@ -65,20 +74,27 @@ namespace DanmakuR.Protocol
 				return TryBindFromJson(ref aggreated_messages, binder, out message);
 
 			SequenceReader<byte> r = new(aggreated_messages.IsEmpty ? aggreated_messages : input);
-			using RentBuffer decompressed = new();
 			message = null;
 			if (r.TryReadPayloadHeader(out FrameHeader header))
 			{
-				ReadOnlySequence<byte> frame = input.Slice(4, header.FrameLength);
-				ReadOnlySequence<byte> payload = frame.Slice(4, header.HeaderLength);
-				input = input.Slice(header.FrameLength + 1);	
+				if (input.Length < header.FrameLength)
+					return false;
+
+				ReadOnlySequence<byte> payload = input.Slice(header.HeaderLength, header.FrameLength);
+				input = input.Slice(header.HeaderLength + header.FrameLength + 1);
+
 				if (header.Version == FrameVersion.Int32BE || header.OpCode == OpCode.Pong)
 				{
+					r.Advance(header.HeaderLength);
 					r.TryReadBigEndian(out int value);
 					if (CheckMethodParamTypes(binder, WellKnownMethods.OnPopularity.Name, WellKnownMethods.OnPopularity.ParamTypes))
 					{
 						message = new InvocationMessage(WellKnownMethods.OnPopularity.Name, new object[] { value });
 						return true;
+					}
+					else
+					{
+						return false;
 					}
 				}
 
@@ -96,15 +112,12 @@ namespace DanmakuR.Protocol
 						return false;
 				}
 
-				TryBindFromJson(ref payload, binder, out message);
-
+				return TryBindFromJson(ref payload, binder, out message);
 			}
 			else
 			{
 				return false;
 			}
-
-			return message != null;
 		}
 
 		private static bool CheckMethodParamTypes(IInvocationBinder binder, string methodName, Type[] types)
@@ -114,7 +127,21 @@ namespace DanmakuR.Protocol
 		}
 
 		/// <inheritdoc/>
+		/// <exception cref="OverflowException" />
 		public void WriteMessage(HubMessage message, IBufferWriter<byte> output)
+		{
+			if (ReferenceEquals(message, PingMessage.Instance) || message is PingMessage)
+				ping_message_header.CopyTo(output.GetSpan(16));
+
+			var tempBuffer = MemoryBufferWriter.Get();
+			FrameHeader header = new();
+			WriteMessageCore(message, tempBuffer, ref header);
+			output.WriteHeader(ref header);
+			tempBuffer.CopyTo(output);
+			throw new NotImplementedException();
+		}
+
+		private void WriteMessageCore(HubMessage message, MemoryBufferWriter temp, ref FrameHeader header)
 		{
 			switch (message)
 			{
@@ -124,18 +151,20 @@ namespace DanmakuR.Protocol
 						switch (options.HandshakeSettings)
 						{
 							case Handshake3 v3:
-								v3.Serialize(output);
+								v3.Serialize(temp);
 								break;
 							default:
-								options.HandshakeSettings.Serialize(output);
+								options.HandshakeSettings.Serialize(temp);
 								break;
-						}						
+						}
+						header.OpCode = OpCode.ConnectAndAuth;
 					}
 					else
 					{
 						throw new HubException("protocol_mismatch");
 					}
 					break;
+				// 这不科学
 				case HandshakeResponseMessage:
 				case CloseMessage:
 					break;
@@ -144,9 +173,7 @@ namespace DanmakuR.Protocol
 					throw new HubException("unreconized_message");
 			}
 
-
-
-			throw new NotImplementedException();
+			header.FrameLength = checked((int)(header.HeaderLength + temp.Length));
 		}
 	}
 }

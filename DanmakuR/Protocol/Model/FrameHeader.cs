@@ -12,6 +12,8 @@ internal enum FrameVersion : short
 
 internal enum OpCode : int
 {
+	Invalid = 0,
+	ClDefault = 1,
 	Ping = 2,
 	Pong = 3,
 	Message = 5,
