@@ -8,10 +8,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="6.0.2">
-      <PrivateAssets>lib</PrivateAssets>
-      <IncludeAssets></IncludeAssets>
-    </PackageReference>
+	<InternalsVisibleTo Include="DanmakuRTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DanmakuR.Client.Core" Version="6.0.3" />
   </ItemGroup>
 
 </Project>
