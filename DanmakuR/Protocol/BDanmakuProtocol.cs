@@ -138,6 +138,9 @@ namespace DanmakuR.Protocol
 			WriteMessageCore(message, tempBuffer, ref header);
 			output.WriteHeader(ref header);
 			tempBuffer.CopyTo(output);
+
+			MemoryBufferWriter.Return(tempBuffer);
+
 			throw new NotImplementedException();
 		}
 
