@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /DanmakuR/Properties/launchSettings.json
 /.vscode
+/DanmakuR/Resources/SR.Designer.cs

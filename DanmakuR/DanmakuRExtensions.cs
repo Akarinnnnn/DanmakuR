@@ -1,13 +1,10 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.AspNetCore.SignalR.Protocol;
-using Microsoft.AspNetCore.Http.Connections;
-using Microsoft.AspNetCore.Http.Connections.Client;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.AspNetCore.SignalR;
 
 using DanmakuR.Protocol;
 using DanmakuR.Protocol.Model;
+using Microsoft.AspNetCore.SignalR.Protocol;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace DanmakuR
 {
@@ -15,7 +12,10 @@ namespace DanmakuR
 	{
 		public static IHubConnectionBuilder UseBDanmakuProtocol(this IHubConnectionBuilder builder)
 		{
-			builder.Services.AddSingleton<BDanmakuProtocol>();
+			builder.Services.RemoveAll<IHubProtocol>()
+				.AddSingleton<BDanmakuProtocol>()
+				;//.Configure();
+			
 			return builder;
 		}
 

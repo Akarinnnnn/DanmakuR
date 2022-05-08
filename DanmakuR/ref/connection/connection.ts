@@ -78,7 +78,6 @@ interface Packet {
     op: number;
 	ver: number;
 	seq?: number;
-	count?: number;
 };
 
 export class Connection {
@@ -130,7 +129,7 @@ export class Connection {
 		var t = this;
 		var opt = this.options;
 		try {
-			this.ws = new WebSocket(e);
+			this.ws = new WebSocket(e.toString());
 			this.ws.binaryType = 'arraybuffer';
 			this.ws.onopen = this.onOpen.bind(this);
 			this.ws.onmessage = this.onMessage.bind(this);
@@ -378,9 +377,6 @@ export class Connection {
 	}
 	/**
 	 * serialize
-	 * @param {any} payload 
-	 * @param {number} opcode 
-	 * @returns {ArrayBuffer}
 	 */
 	convertToArrayBuffer(payload: any, opcode: number): ArrayBuffer {
 		if (!this.encoder) {

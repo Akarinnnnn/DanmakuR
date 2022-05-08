@@ -1,4 +1,5 @@
 ﻿using DanmakuR.Protocol.Model;
+using DanmakuR.Resources;
 using System.Buffers;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
@@ -38,6 +39,33 @@ namespace DanmakuR.Buffer
 				return false;
 
 			return result;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal static bool TryReadHeader(this in ReadOnlySequence<byte> input, out FrameHeader header)
+		{
+			if (input.Length < 16)
+			{
+				header = default;
+				return false;
+			}
+
+			if (input.FirstSpan.Length >= 16)
+			{
+				ReadOnlySpan<byte> head = input.FirstSpan[..16];
+				header = new(ReadInt32BigEndian(head),
+					ReadInt16BigEndian(head[4..]),
+					ReadInt16BigEndian(head[6..]),
+					ReadInt32BigEndian(head[8..]),
+					ReadInt32BigEndian(head[12..]));
+
+				return true;
+			}
+			else
+			{
+				SequenceReader<byte> r = new(input);
+				return TryReadPayloadHeader(ref r, out header);
+			}
 		}
 
 		/// <summary>
@@ -116,7 +144,7 @@ namespace DanmakuR.Buffer
 					case OperationStatus.InvalidData:
 						throw new InvalidDataException();
 					default:
-						throw new ArgumentOutOfRangeException("value", "enum_outofrange");
+						throw new ArgumentOutOfRangeException(nameof(status), SysSR.ArgumentOutOfRange_Enum);
 				}
 			}
 			else
