@@ -13,7 +13,6 @@ namespace DanmakuR.Protocol.Model
 	internal struct MessagePackage
 	{
 		private SequencePosition pos = default;
-		private bool single;
 		private int index = 0;
 		private int length = 0;
 		internal readonly ReadOnlySequence<byte> data;
@@ -36,8 +35,8 @@ namespace DanmakuR.Protocol.Model
 		{
 			this.data = data;
 			this.opcode = opcode;
-			single = data.IsSingleSegment;
-			if (!single)
+			
+			if (!data.IsSingleSegment)
 				pos = data.Start;
 			else
 				length = unchecked((int)data.Length);
@@ -52,7 +51,7 @@ namespace DanmakuR.Protocol.Model
 			[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 			get
 			{
-				if (single)
+				if (length != 0)
 					return index > length;
 				else 
 					return pos.Equals(data.End);
@@ -61,7 +60,7 @@ namespace DanmakuR.Protocol.Model
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 		public Utf8JsonReader ReadOne()
 		{
-			if (single)
+			if (length != 0)
 			{
 				var span = data.FirstSpan;
 				var endIndex = span.IndexOf(Delimiters);

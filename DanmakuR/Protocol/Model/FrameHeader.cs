@@ -1,4 +1,5 @@
 ﻿using System.Buffers;
+using System.Runtime.CompilerServices;
 
 namespace DanmakuR.Protocol.Model;
 
@@ -38,7 +39,20 @@ internal struct FrameHeader
 	public int _opcode;
 	public int SequenceId = 1;
 
-	public OpCode OpCode { get => (OpCode)_opcode; set => _opcode = (int)value; }
-	public FrameVersion Version { get => (FrameVersion)_version; set => _version = (short)value; }
+
+	public OpCode OpCode
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => (OpCode)_opcode;
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set => _opcode = (int)value;
+	}
+	public FrameVersion Version
+	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		get => (FrameVersion)_version;
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		set => _version = (short)value;
+	}
 
 }

@@ -70,10 +70,21 @@ namespace DanmakuR.Protocol
 		/// <inheritdoc/>
 		public bool TryParseMessage(ref ReadOnlySequence<byte> input, IInvocationBinder binder, [NotNullWhen(true)] out HubMessage? message)
 		{
-			if (!aggreated_messages.IsEmpty)
-				return ParseAggreated(binder, out message);
+			if (!message_package.IsEmpty)
+			{
+				try
+				{
+					ParseOne(message_package.ReadOne(), binder, out message);
+					return true;
+				}
+				catch (JsonException)
+				{
+					message = null;
+					return false;
+				}
+			}
 
-			if (TryParsePackage(ref input, out var payload, out var header))
+			if (TrySliceInput(ref input, out var payload, out var header))
 			{
 				if (header.Version == FrameVersion.Int32BE || header.OpCode == OpCode.Pong)
 				{
@@ -86,7 +97,11 @@ namespace DanmakuR.Protocol
 					else
 					{
 						var r = new SequenceReader<byte>(payload);
-						r.TryReadBigEndian(out value);
+						if (!r.TryReadBigEndian(out value))
+						{
+							message = null;
+							return false;
+						}
 					}
 
 					try
@@ -102,30 +117,40 @@ namespace DanmakuR.Protocol
 					}
 				}
 
-				header = UnPackage(header, ref payload, out aggreated_messages);
-				package_opcode = header.OpCode;
+				try
+				{
+					ParseOne(new Utf8JsonReader(payload), binder, out message);
+				}
+				catch (JsonException)
+				{
+					message = null;
+					return false;
+				}
+			}
 
-				return ParseAggreated(binder, out message);
-			}
-			else
-			{
-				message = null;
-				return false;
-			}
+			message = null;
+			return false;
 		}
-		private bool ParseAggreated(IInvocationBinder binder, out HubMessage? msg)
+
+		/// <summary>
+		/// 解析核心
+		/// </summary>
+		/// <param name="reader"></param>
+		/// <param name="binder"></param>
+		/// <param name="msg"></param>
+		/// <returns></returns>
+		private void ParseOne(Utf8JsonReader reader, IInvocationBinder binder, [NotNull] out HubMessage? msg)
 		{
 			//TODO: 解析json
-			msg = null;
-			return false;
+
 		}
 
 		// TODO: 什么玩意？
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static FrameHeader UnPackage(FrameHeader header, ref ReadOnlySequence<byte> package, out ReadOnlySequence<byte> content)
+		private void UnPackage(FrameVersion version, ref ReadOnlySequence<byte> package)
 		{
 			var temp = package;
-			switch (header.Version)
+			switch (version)
 			{
 				case FrameVersion.Deflate:
 					temp.DecompressDeflate();
@@ -134,40 +159,24 @@ namespace DanmakuR.Protocol
 					temp.DecompressBrotli();
 					break;
 				case FrameVersion.Json:
-					content = package;
-					return header;
 				default:
-					content = default;
-					return header;
+					break;
 			}
 
-			if (!TryParsePackage(ref temp, out content, out header))
+			if (!TrySlicePayload(ref temp, out var opcode))
 				throw new InvalidDataException(SR.Invalid_MsgBag);
 
-			return header;
+			message_package = new(in temp, opcode);
 		}
 
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="source"></param>
+		/// <param name="input">数据来源，会切段</param>
+		/// <param name="payload">数据包内容</param>
 		/// <param name="header"></param>
-		/// <param name="content">切出的json/压缩包</param>
 		/// <returns></returns>
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-		private static bool TrySlice(ref ReadOnlySequence<byte> source, FrameHeader header, out ReadOnlySequence<byte> content)
-		{
-			if (source.Length < header.FrameLength)
-			{
-				content = default;
-				return false;
-			}
-
-			content = source.Slice(header.HeaderLength, header.FrameLength);
-			return true;
-		}
-
-		private static bool TryParsePackage(ref ReadOnlySequence<byte> input, out ReadOnlySequence<byte> payload, out FrameHeader header)
+		private static bool TrySliceInput(ref ReadOnlySequence<byte> input, out ReadOnlySequence<byte> payload, out FrameHeader header)
 		{
 			if (!(input.TryReadHeader(out header) && input.Length > header.FrameLength))
 			{
@@ -181,15 +190,34 @@ namespace DanmakuR.Protocol
 			return true;
 		}
 
+		private static bool TrySlicePayload(ref ReadOnlySequence<byte> package, out OpCode opcode)
+		{
+			if (!(package.TryReadHeader(out var header) && package.Length > header.FrameLength))
+			{
+				opcode = OpCode.Invalid;
+				return false;
+			}
+
+			package = package.Slice(header.HeaderLength, header.FrameLength);
+			opcode = header.OpCode;
+			return true;
+		}
+
 		private static void AssertMethodParamTypes(IInvocationBinder binder, string methodName, Type[] types)
 		{
 			var actualTypes = binder.GetParameterTypes(methodName);
 			if (!types.SequenceEqual(actualTypes))
 			{
-				StringBuilder sb = new(80);
+				DefaultInterpolatedStringHandler sb = new(
+					(actualTypes.Count - 1) * 2, actualTypes.Count, null, 
+					stackalloc char[actualTypes.Count * 24 + 8]
+				);
 				foreach (var type in types)
-					sb.Append(type.Name).Append(", ");
-				string message = string.Format(SR.Sig_Mismatch, methodName, sb);
+				{
+					sb.AppendFormatted(type.Name);
+					sb.AppendLiteral(", ");
+				}
+				string message = string.Format(SR.Sig_Mismatch, methodName, sb.ToStringAndClear());
 				throw new ArgumentException(message);
 			}
 		}
@@ -280,7 +308,7 @@ namespace DanmakuR.Protocol
 
 		public bool TryParseResponseMessage(ref ReadOnlySequence<byte> buffer, [NotNullWhen(true)] out HandshakeResponseMessage? responseMessage)
 		{
-			bool result = TryParsePackage(ref buffer, out var response, out FrameHeader header);
+			bool result = TrySliceInput(ref buffer, out var response, out FrameHeader header);
 			if (!result)
 			{
 				responseMessage = null;
