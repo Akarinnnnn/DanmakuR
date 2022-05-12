@@ -9,6 +9,12 @@ namespace DanmakuR.Buffer
 	public ref struct RentBuffer
 	{
 		private byte[]? buff = null;
+
+		public RentBuffer()
+		{
+			
+		}
+
 		public byte[] Buff
 		{
 			[MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.AggressiveInlining)]
