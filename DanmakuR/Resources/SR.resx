@@ -129,6 +129,9 @@
   <data name="Sig_Mismatch" xml:space="preserve">
     <value>方法({0})的参数列表必须是({1})</value>
   </data>
+  <data name="Unreconized_Compression" xml:space="preserve">
+    <value>未知的数据压缩方式({0})</value>
+  </data>
   <data name="Unsupported_Message" xml:space="preserve">
     <value>不支持这类HubMessage</value>
   </data>

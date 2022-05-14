@@ -1,11 +1,13 @@
 ﻿
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 
 namespace DanmakuR.Protocol.Model;
 #pragma warning disable IDE1006 // b站命的名
 
 internal class Negotiate
 {
+	[JsonConstructor]
 	public Negotiate(int code, string message, NegotiateData data)
 	{
 		this.code = code;
@@ -17,12 +19,14 @@ internal class Negotiate
 	internal string message { get; set; }
 	internal NegotiateData? data { get; set; }
 
+	[JsonIgnore]
 	[MemberNotNullWhen(true, nameof(data))]
 	internal bool IsValid => code == 0;
 }
 
 internal class NegotiateData
 {
+	[JsonConstructor]
 	public NegotiateData(int refresh_rate, int max_delay, string token, Host[] host_list)
 	{
 		this.refresh_rate = refresh_rate;
@@ -39,6 +43,7 @@ internal class NegotiateData
 
 internal class Host
 {
+	[JsonConstructor]
 	public Host(string host, short port, short wss_port, short ws_port)
 	{
 		this.host = host;
