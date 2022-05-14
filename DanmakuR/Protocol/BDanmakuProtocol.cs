@@ -21,7 +21,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 
 namespace DanmakuR.Protocol
 {
-	internal class BDanmakuProtocol : IHubProtocol, IHandshakeProtocol
+	internal partial class BDanmakuProtocol : IHubProtocol, IHandshakeProtocol
 	{
 		// int32 framelength, int16 headerlength, int16 version, int32 opcode, int32 seqid
 		private static readonly byte[] ping_message =
@@ -35,21 +35,21 @@ namespace DanmakuR.Protocol
 		private static ReadOnlyMemory<byte> PingMessageMemory => ping_message;
 
 		private readonly BDanmakuOptions options;
+		private readonly ILogger logger;
+
 		public string Name => typeof(BDanmakuProtocol).FullName!;
 		public int Version => 3;
 		public TransferFormat TransferFormat => TransferFormat.Binary;
+		private MessagePackage message_package = default;
 		
-
-		private MessagePackage message_package;
-		
-		static BDanmakuProtocol()
-		{
-			
-		}
-
-		public BDanmakuProtocol(IOptions<BDanmakuOptions> opt)
+		/// <summary>
+		/// 请使用DI
+		/// </summary>
+		/// <param name="opt"></param>
+		public BDanmakuProtocol(IOptions<BDanmakuOptions> opt, ILoggerFactory loggerFactory)
 		{
 			options = opt.Value;
+			logger = loggerFactory.CreateLogger<BDanmakuProtocol>();
 		}
 
 		/// <inheritdoc/>
@@ -74,11 +74,13 @@ namespace DanmakuR.Protocol
 			{
 				try
 				{
-					ParseOne(message_package.ReadOne(), binder, out message);
+					Log.MultipleMessage(logger);
+					message_package.AdvanceTo(ParseOne(message_package.ReadOne(), binder, out message));
 					return true;
 				}
-				catch (JsonException)
+				catch (JsonException e)
 				{
+					Log.InvalidJson(logger, e);
 					message = null;
 					return false;
 				}
@@ -119,15 +121,23 @@ namespace DanmakuR.Protocol
 
 				try
 				{
-					ParseOne(new Utf8JsonReader(payload), binder, out message);
+					if (header.Version != FrameVersion.Json)
+						UnPackage(ref header, ref payload);
+
+					message_package.AdvanceTo(ParseOne(new Utf8JsonReader(payload), binder, out message));
 				}
-				catch (JsonException)
+				catch (JsonException e)
 				{
-					message = null;
-					return false;
+					Log.InvalidJson(logger, e);
+					goto fail;
+				}
+				catch (InvalidDataException e)
+				{
+					Log.InvalidData(logger, e);
+					goto fail;
 				}
 			}
-
+			fail:
 			message = null;
 			return false;
 		}
@@ -139,40 +149,38 @@ namespace DanmakuR.Protocol
 		/// <param name="binder"></param>
 		/// <param name="msg"></param>
 		/// <returns></returns>
-		private void ParseOne(Utf8JsonReader reader, IInvocationBinder binder, [NotNull] out HubMessage? msg)
+		private SequencePosition ParseOne(Utf8JsonReader reader, IInvocationBinder binder, out HubMessage msg)
 		{
 			//TODO: 解析json
 
+			return reader.Position;
 		}
 
 		// TODO: 什么玩意？
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void UnPackage(FrameVersion version, ref ReadOnlySequence<byte> package)
+		private void UnPackage(ref FrameHeader header, ref ReadOnlySequence<byte> compressedPackage)
 		{
-			var temp = package;
-			switch (version)
+			switch (header.Version)
 			{
 				case FrameVersion.Deflate:
-					temp.DecompressDeflate();
+					compressedPackage.DecompressDeflate();
 					break;
 				case FrameVersion.Brotli:
-					temp.DecompressBrotli();
+					compressedPackage.DecompressBrotli();
 					break;
-				case FrameVersion.Json:
 				default:
-					break;
+					throw new InvalidDataException(string.Format(SR.Unreconized_Compression, header.Version));
 			}
 
-			if (!TrySlicePayload(ref temp, out var opcode))
+			if (!compressedPackage.TryReadHeader(out header) || !TrySlicePayload(ref compressedPackage, out var opcode))
 				throw new InvalidDataException(SR.Invalid_MsgBag);
-
-			message_package = new(in temp, opcode);
+			else
+				message_package = new(in compressedPackage, opcode);
 		}
 
 		/// <summary>
-		/// 
+		/// 从<paramref name="input"/>切去一个数据包
 		/// </summary>
-		/// <param name="input">数据来源，会切段</param>
+		/// <param name="input">待解析的数据流</param>
 		/// <param name="payload">数据包内容</param>
 		/// <param name="header"></param>
 		/// <returns></returns>
@@ -190,15 +198,21 @@ namespace DanmakuR.Protocol
 			return true;
 		}
 
-		private static bool TrySlicePayload(ref ReadOnlySequence<byte> package, out OpCode opcode)
+		/// <summary>
+		/// 从数据包中切出内容
+		/// </summary>
+		/// <param name="input">数据包，返回<see langword="true"/>时，修改为数据包内容</param>
+		/// <param name="opcode"></param>
+		/// <returns></returns>
+		private static bool TrySlicePayload(ref ReadOnlySequence<byte> input, out OpCode opcode)
 		{
-			if (!(package.TryReadHeader(out var header) && package.Length > header.FrameLength))
+			if (!(input.TryReadHeader(out var header) && input.Length > header.FrameLength))
 			{
 				opcode = OpCode.Invalid;
 				return false;
 			}
 
-			package = package.Slice(header.HeaderLength, header.FrameLength);
+			input = input.Slice(header.HeaderLength, header.FrameLength);
 			opcode = header.OpCode;
 			return true;
 		}
