@@ -19,14 +19,13 @@ namespace DanmakuR
 		public static IHubConnectionBuilder UseBDanmakuProtocol(this IHubConnectionBuilder builder)
 		{
 			builder.Services.RemoveAll<IHubProtocol>()
-				.AddSingleton<IHubProtocol, BDanmakuProtocol>()
-				;//.Configure();
+				.AddSingleton<IHubProtocol, BDanmakuProtocol>();
 			
 			return builder;
 		}
 
 		/// <summary>
-		/// 
+		/// 添加<see cref="SocketConnectionFactory"/>
 		/// </summary>
 		/// <param name="builder"></param>
 		public static IHubConnectionBuilder UseRawSocketTransport(this IHubConnectionBuilder builder)
@@ -36,14 +35,14 @@ namespace DanmakuR
 			return builder;
 		}
 
-		public static IHubConnectionBuilder ConfigureSocketOptions(this IHubConnectionBuilder builder, Action<SocketConnectionFactoryOptions>? configure)
+		public static IHubConnectionBuilder AddSocketOptions(this IHubConnectionBuilder builder, Action<SocketConnectionFactoryOptions>? configure)
 		{
 			builder.Services.AddOptions<SocketConnectionFactoryOptions>()
 				.Configure(configure);
 			return builder;
 		}
 
-		public static IHubConnectionBuilder ConfigureHandshake(this IHubConnectionBuilder builder, Action<Handshake2> configure)
+		public static IHubConnectionBuilder AddHandshake(this IHubConnectionBuilder builder, Action<Handshake2> configure)
 		{
 			builder.Services.AddOptions<Handshake2>()
 				.Configure(configure)
@@ -52,7 +51,7 @@ namespace DanmakuR
 			return builder;
 		}
 
-		public static IHubConnectionBuilder ConfigureHandshake3(this IHubConnectionBuilder builder, Action<Handshake3> configure)
+		public static IHubConnectionBuilder AddHandshake3(this IHubConnectionBuilder builder, Action<Handshake3> configure)
 		{
 			builder.Services.AddOptions<Handshake3>()
 				.Configure(configure)
@@ -62,7 +61,7 @@ namespace DanmakuR
 		}
 
 		/// <summary>
-		/// 异步添加Socket传输实现，并选择第一个socket服务器，同时设置房号
+		/// 异步添加Socket传输实现，并协商选择第一个socket服务器，同时设置房号
 		/// </summary>
 		/// <param name="builder"></param>
 		/// <param name="roomid">房间号</param>
@@ -75,6 +74,7 @@ namespace DanmakuR
 			string negotiateEndpoint = $"https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id={roomid}";
 			using HttpClient client = new ();
 			var result = await client.GetFromJsonAsync<Negotiate>(negotiateEndpoint, NegotiateContext.Default.Options, cancellationToken);
+
 			string endpoint;
 			short port;
 			if (result == null || !result.IsValid)
@@ -88,9 +88,11 @@ namespace DanmakuR
 				endpoint = chosen.host;
 				port = chosen.port;
 			}
-			IPAddress endpointip = (await Dns.GetHostAddressesAsync(endpoint, cancellationToken))[0];
 
-			builder.Services.AddSingleton<EndPoint, IPEndPoint>((_) => new IPEndPoint(endpointip, port))
+			IPAddress endpointip = (await Dns.GetHostAddressesAsync(endpoint, cancellationToken))[0];
+			cancellationToken.ThrowIfCancellationRequested();
+
+			builder.Services.AddSingleton<EndPoint>(new IPEndPoint(endpointip, port))
 			.Configure<Handshake2>((opt) => opt.Roomid = roomid);
 			builder.UseRawSocketTransport();
 			return builder;

@@ -6,7 +6,7 @@ namespace DanmakuR.Protocol.Model
 	/// 
 	/// </summary>
 	/// <remarks>
-	/// 推荐使用<see cref="DanmakuRExtensions.ConfigureHandshake(IHubConnectionBuilder, Action{Handshake2})"/>
+	/// 推荐使用<see cref="DanmakuRExtensions.AddHandshake(IHubConnectionBuilder, Action{Handshake2})"/>
 	/// </remarks>
 	[JsonNumberHandling(JsonNumberHandling.Strict)]
 	public class Handshake2
