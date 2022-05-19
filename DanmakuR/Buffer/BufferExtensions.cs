@@ -179,7 +179,9 @@ namespace DanmakuR.Buffer
 					case OperationStatus.InvalidData:
 						throw new InvalidDataException();
 					default:
+#pragma warning disable CA2208 // nameof(status)
 						throw new ArgumentOutOfRangeException(nameof(status), SysSR.ArgumentOutOfRange_Enum);
+#pragma warning restore CA2208 // 枚举值不在范围内
 				}
 			}
 			else
