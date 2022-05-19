@@ -1,4 +1,5 @@
 ﻿using DanmakuR.Buffer;
+using DanmakuR.Protocol.Model;
 using DanmakuR.Resources;
 using System;
 using System.Buffers;
@@ -10,7 +11,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace DanmakuR.Protocol.Model
+namespace DanmakuR.Protocol
 {
 	internal struct MessagePackage
 	{

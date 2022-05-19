@@ -11,7 +11,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Numerics;
 using System.Text.Json;
-
 using Microsoft.AspNetCore.Internal;
 using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
@@ -78,15 +77,15 @@ namespace DanmakuR.Protocol
 					message_package.AdvanceTo(ParseOne(message_package.ReadOne(), binder, out message));
 					return true;
 				}
-				catch (JsonException e)
+				catch (JsonException)
 				{
-					Log.InvalidJson(logger, e);
+					Log.InvalidJson(logger);
 					message = null;
 					return false;
 				}
 			}
 
-			if (TrySliceInput(ref input, out var payload, out var header))
+			if (TrySliceInput(in input, out var payload, out var header))
 			{
 				if (header.Version == FrameVersion.Int32BE || header.OpCode == OpCode.Pong)
 				{
@@ -112,7 +111,7 @@ namespace DanmakuR.Protocol
 						message = new InvocationMessage(nameof(WellKnownMethods.OnPopularity), new object[] { value });
 						return true;
 					}
-					catch (Exception ex)
+					catch (ArgumentException ex)
 					{
 						message = new InvocationBindingFailureMessage(null, WellKnownMethods.OnPopularity.Name, ExceptionDispatchInfo.Capture(ex));
 						return true;
@@ -126,14 +125,14 @@ namespace DanmakuR.Protocol
 
 					message_package.AdvanceTo(ParseOne(new Utf8JsonReader(payload), binder, out message));
 				}
-				catch (JsonException e)
+				catch (JsonException)
 				{
-					Log.InvalidJson(logger, e);
+					Log.InvalidJson(logger);
 					goto fail;
 				}
-				catch (InvalidDataException e)
+				catch (InvalidDataException)
 				{
-					Log.InvalidData(logger, e);
+					Log.InvalidData(logger);
 					goto fail;
 				}
 			}
@@ -168,7 +167,7 @@ namespace DanmakuR.Protocol
 					compressedPackage.DecompressBrotli();
 					break;
 				default:
-					throw new InvalidDataException(string.Format(SR.Unreconized_Compression, header.Version));
+					throw new InvalidDataException(string.Format(SR.Unreconized_Compression, header._version));
 			}
 
 			if (!compressedPackage.TryReadHeader(out header) || !TrySlicePayload(ref compressedPackage, out var opcode))
@@ -184,7 +183,7 @@ namespace DanmakuR.Protocol
 		/// <param name="payload">数据包内容</param>
 		/// <param name="header"></param>
 		/// <returns></returns>
-		private static bool TrySliceInput(ref ReadOnlySequence<byte> input, out ReadOnlySequence<byte> payload, out FrameHeader header)
+		private static bool TrySliceInput(in ReadOnlySequence<byte> input, out ReadOnlySequence<byte> payload, out FrameHeader header)
 		{
 			if (!(input.TryReadHeader(out header) && input.Length > header.FrameLength))
 			{
@@ -194,7 +193,6 @@ namespace DanmakuR.Protocol
 			}
 
 			payload = input.Slice(header.HeaderLength, header.FrameLength);
-			input = input.Slice(header.FrameLength);
 			return true;
 		}
 
@@ -322,15 +320,33 @@ namespace DanmakuR.Protocol
 
 		public bool TryParseResponseMessage(ref ReadOnlySequence<byte> buffer, [NotNullWhen(true)] out HandshakeResponseMessage? responseMessage)
 		{
-			bool result = TrySliceInput(ref buffer, out var response, out FrameHeader header);
+			bool result = TrySliceInput(in buffer, out var response, out _);
 			if (!result)
 			{
 				responseMessage = null;
 				return false;
 			}
-
-			responseMessage = new HandshakeResponseMessage(null);
-			return true;
+			// TODO: 解析response
+			try
+			{
+				var code = HandshakeResponse.ParseResponse(new(response));
+				if (code == 0)
+				{
+					responseMessage = new HandshakeResponseMessage(null);
+					return true;
+				}
+				else
+				{
+					// TODO: 也放进SR
+					responseMessage = new(string.Format("握手失败，错误代码：{0}", code));
+					return true;
+				}
+			}
+			catch (Exception ex)
+			{
+				responseMessage = new HandshakeResponseMessage(ex.Message);
+				return true;
+			}
 		}
 	}
 }

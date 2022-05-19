@@ -15,7 +15,7 @@ namespace DanmakuR.Protocol
 
 	[JsonSerializable(typeof(Negotiate))]
 	[JsonSerializable(typeof(NegotiateData))]
-	[JsonSerializable(typeof(Host))]
+	[JsonSerializable(typeof(Model.Host))]
 	[JsonSourceGenerationOptions()]
 	internal partial class NegotiateContext : JsonSerializerContext
 	{
