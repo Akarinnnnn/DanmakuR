@@ -1,6 +1,7 @@
 ﻿namespace DanmakuR.Protocol.Model;
 
 using Microsoft.AspNetCore.Internal;
+using Microsoft.AspNetCore.SignalR;
 using System.Text.Json;
 
 internal class HandshakeResponse
@@ -51,9 +52,8 @@ internal class HandshakeResponse
 			}
 		}
 
-		// TODO: 放进SR
 		if (code == null)
-			throw new Exception("响应有点怪");
+			throw new InvalidDataException("这连的是b站吗？");
 
 		got:
 		return code.Value;
