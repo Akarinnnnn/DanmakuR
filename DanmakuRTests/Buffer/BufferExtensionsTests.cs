@@ -56,7 +56,7 @@ namespace DanmakuR.Buffer.Tests
 			data.Reset(8192);
 			Memory<byte> compressed = data.Memory[..br.Read(data.Span)];
 			ReadOnlySequence<byte> seq = new(compressed);
-			seq.DecompressBrotli();
+			seq.DecompressBrotli(out seq);
 			StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq));
 		}
 		
@@ -69,7 +69,7 @@ namespace DanmakuR.Buffer.Tests
 			data.Reset(8192);
 			Memory<byte> compressed = data.Memory[..br.Read(data.Span)];
 			ReadOnlySequence<byte> seq = new(compressed);
-			Assert.ThrowsException<InvalidDataException>(() => seq.DecompressBrotli());
+			Assert.ThrowsException<InvalidDataException>(() => seq.DecompressBrotli(out _));
 		}
 
 		[DataRow("data/BDanmakuProtocol.cs")]
@@ -89,7 +89,7 @@ namespace DanmakuR.Buffer.Tests
 			SimpleSegment first = new (compressed[..midpoint], 0);
 			SimpleSegment last = first.SetNext(compressed[midpoint..], midpoint);
 			ReadOnlySequence<byte> seq = new(first, 0, last, last.Memory.Length);
-			seq.DecompressBrotli();
+			seq.DecompressBrotli(out seq);
 
 			StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq));
 		}
@@ -118,7 +118,7 @@ namespace DanmakuR.Buffer.Tests
 			data.Reset(8192);
 			Memory<byte> compressed = data.Memory[..br.Read(data.Span)];
 			ReadOnlySequence<byte> seq = new(compressed);
-			seq.DecompressDeflate();
+			seq.DecompressDeflate(out seq);
 			StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq));
 		}
 
@@ -131,7 +131,7 @@ namespace DanmakuR.Buffer.Tests
 			data.Reset(8192);
 			Memory<byte> compressed = data.Memory[..br.Read(data.Span)];
 			ReadOnlySequence<byte> seq = new(compressed);
-			Assert.ThrowsException<InvalidDataException>(() => seq.DecompressDeflate());
+			Assert.ThrowsException<InvalidDataException>(() => seq.DecompressDeflate(out _));
 		}
 
 		[DataRow("data/BDanmakuProtocol.cs")]
@@ -151,7 +151,7 @@ namespace DanmakuR.Buffer.Tests
 			SimpleSegment first = new(compressed[..midpoint], 0);
 			SimpleSegment last = first.SetNext(compressed[midpoint..], midpoint);
 			ReadOnlySequence<byte> seq = new(first, 0, last, last.Memory.Length);
-			seq.DecompressDeflate();
+			seq.DecompressDeflate(out seq);
 
 			StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq));
 		}

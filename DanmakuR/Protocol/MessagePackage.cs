@@ -15,103 +15,103 @@ namespace DanmakuR.Protocol
 {
 	internal struct MessagePackage
 	{
-		private SequencePosition pos = default;
-		private int index = 0;
-		private readonly int first_length;
-		internal readonly ReadOnlySequence<byte> data;
+		private readonly SequencePosition endPosition;
 		internal readonly OpCode opcode;
-		private static readonly List<byte> got_delimiters = new(80);
 
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="data">不含消息头</param>
+		/// <param name="endPosition">消息末尾（<see cref="FrameHeader.FrameLength"/>）</param>
 		/// <param name="opcode"></param>
-		public MessagePackage(in ReadOnlySequence<byte> data, OpCode opcode)
+		public MessagePackage(SequencePosition endPosition, OpCode opcode)
 		{
-			this.data = data;
+			this.endPosition = endPosition;
 			this.opcode = opcode;
-
-			if (!data.IsSingleSegment)
-				pos = data.Start;
-
-			first_length = data.First.Length;
 		}
 
-		public bool IsEmpty
-		{
-			[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-			get
-			{
-				if (IsInFirst)
-					return index >= first_length;
-				else
-					return pos.Equals(data.End);
-			}
-			[method: MethodImpl(MethodImplOptions.AggressiveInlining)]
-			private set
-			{
-				Debug.Assert(value);
-				index = first_length;
-				pos = data.End;
-			}
-		}
-
-		public bool IsInFirst
-		{
-			[method: MethodImpl(MethodImplOptions.AggressiveInlining)]
-			get => first_length > index;
-		}
+		public bool IsCompleted { get; private set; } = false;
+		public SequencePosition End => endPosition;
 
 		[MethodImpl(MethodImplOptions.NoInlining)]
-		private Utf8JsonReader ReadOneMultiSegment()
+		private void CheckDelimiter(ref SequencePosition pos, in ReadOnlySequence<byte> data)
 		{
-			SequencePosition? result = data.FindDelimiterMultiSegment();
-			if (result == null)
+			if (data.IsSingleSegment)
 			{
-				IsEmpty = true;
-				return new(data);
+				int index = pos.GetInteger();
+				byte nextByte = data.FirstSpan[index + 1];
+				if (nextByte == '{')
+					return;
+
+				// 分隔符
+				if (nextByte < 0x1e)
+				{
+					// 要不加个字段统计一下？
+					pos = data.GetPosition(2, pos);
+					return;
+				}
+				else
+				{
+					// 什么玩意？
+					Complete(ref pos);
+					return;
+				}
 			}
 
-			var delimiter = data.Slice(result.Value, 1).FirstSpan[0];
-			got_delimiters.Add(delimiter);
-			result = data.GetPosition(1, result.Value); // result + 1
-			return new(data.Slice(result.Value));
+			var nextPos = pos;
+			if (data.TryGet(ref nextPos, out var current))
+			{
+				if (current.IsEmpty && SkipEmptySegment(ref nextPos, in data, out current))
+					// 剩下全空，噶了
+					Complete(ref pos);
+
+			}
 		}
 
-		public void AdvanceTo(SequencePosition position)
+		// 一种边界情况，下面给张灵魂作画解释一下
+		//   序列1 ->   序列2
+		// ..., n ]   [ 0, 1, ...
+		//   pos^
+		// pos指在前一个序列的最后一个元素。
+		// 这时候TryGet拿到的Memory就是空的，返回还是true
+		/// <returns><see langword="true"/>剩下全空，噶了；<see langword="false"/>继续</returns>
+		/// <summary>返回<see langword="false"/>时，memory保证有至少一个元素</summary>
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		private static bool SkipEmptySegment(ref SequencePosition position, in ReadOnlySequence<byte> data, out ReadOnlyMemory<byte> memory)
 		{
-			pos = position;
+			while (data.TryGet(ref position, out memory) && memory.IsEmpty) ;
+			return memory.IsEmpty;
+		}
+
+		private void Complete(ref SequencePosition pos)
+		{
+			IsCompleted = true;
+			pos = endPosition;
+		}
+
+		/// <summary>
+		/// 把position改到下一个json开始，或者数据包结尾
+		/// </summary>
+		/// <param name="position"><see cref="Utf8JsonReader.Position"/></param>
+		/// <param name="data"></param>
+		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+		public void FitNextRecord(ref SequencePosition position, in ReadOnlySequence<byte> data)
+		{
+			if (position.Equals(endPosition))
+			{
+				IsCompleted = true;
+				return;
+			}
+
+			CheckDelimiter(ref position, in data);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-		public Utf8JsonReader ReadOne()
+		public Utf8JsonReader ReadOne(in ReadOnlySequence<byte> data)
 		{
-			if (IsInFirst)
-			{
-				var span = data.FirstSpan;
-				var endIndex = span.IndexOfAny(BufferExtensions.Delimiters);
-				if (endIndex == -1)
-				{
-					if (data.IsSingleSegment)
-					{
-						IsEmpty = true;
-						return new Utf8JsonReader(span);
-					}
-					else
-					{
-						return ReadOneMultiSegment();
-					}
-				}
+			if (data.IsEmpty)
+				return new();
 
-				var ret = new Utf8JsonReader(span.Slice(index, endIndex));
-				index = endIndex + 1;
-				return ret;
-			}
-			else
-			{
-				return ReadOneMultiSegment();
-			}
+			return new(data);
 		}
 	}
 }

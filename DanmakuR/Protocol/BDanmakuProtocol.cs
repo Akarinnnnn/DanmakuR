@@ -36,10 +36,12 @@ namespace DanmakuR.Protocol
 		private readonly BDanmakuOptions options;
 		private readonly ILogger logger;
 
-		public string Name => typeof(BDanmakuProtocol).FullName!;
+		private static readonly string full_name = typeof(BDanmakuProtocol).FullName!;
+		public string Name => full_name;
 		public int Version => 3;
 		public TransferFormat TransferFormat => TransferFormat.Binary;
 		private MessagePackage message_package = default;
+		private ReadOnlySequence<byte> decompressed_package = default;
 		
 		/// <summary>
 		/// 请使用DI
@@ -69,12 +71,13 @@ namespace DanmakuR.Protocol
 		/// <inheritdoc/>
 		public bool TryParseMessage(ref ReadOnlySequence<byte> input, IInvocationBinder binder, [NotNullWhen(true)] out HubMessage? message)
 		{
-			if (!message_package.IsEmpty)
+			if (!message_package.IsCompleted)
 			{
 				try
 				{
 					Log.MultipleMessage(logger);
-					message_package.AdvanceTo(ParseOne(message_package.ReadOne(), binder, out message));
+					var pos = ParseOne(message_package.ReadOne(in input), binder, out message);
+					message_package.FitNextRecord(ref pos, in input);
 					return true;
 				}
 				catch (JsonException)
@@ -83,6 +86,10 @@ namespace DanmakuR.Protocol
 					message = null;
 					return false;
 				}
+			}
+			else
+			{
+				input = input.Slice(message_package.End);
 			}
 
 			if (TrySliceInput(in input, out var payload, out var header))
@@ -121,9 +128,9 @@ namespace DanmakuR.Protocol
 				try
 				{
 					if (header.Version != FrameVersion.Json)
-						UnPackage(ref header, ref payload);
-
-					message_package.AdvanceTo(ParseOne(new Utf8JsonReader(payload), binder, out message));
+					{
+						UnPackage(ref header, payload);
+					}					
 				}
 				catch (JsonException)
 				{
@@ -150,30 +157,32 @@ namespace DanmakuR.Protocol
 		/// <returns></returns>
 		private SequencePosition ParseOne(Utf8JsonReader reader, IInvocationBinder binder, out HubMessage msg)
 		{
-			//TODO: 解析json
+			throw new NotImplementedException();
 
+#pragma warning disable CS0162 // 检测到无法访问的代码
+			//TODO: 解析json
 			return reader.Position;
+#pragma warning restore CS0162 // 检测到无法访问的代码
 		}
 
 		// TODO: 什么玩意？
-		private void UnPackage(ref FrameHeader header, ref ReadOnlySequence<byte> compressedPackage)
+		private void UnPackage(ref FrameHeader header, ReadOnlySequence<byte> compressedPackage)
 		{
 			switch (header.Version)
 			{
 				case FrameVersion.Deflate:
-					compressedPackage.DecompressDeflate();
+					compressedPackage.DecompressDeflate(out decompressed_package);
 					break;
 				case FrameVersion.Brotli:
-					compressedPackage.DecompressBrotli();
+					compressedPackage.DecompressBrotli(out decompressed_package);
 					break;
 				default:
 					throw new InvalidDataException(string.Format(SR.Unreconized_Compression, header._version));
 			}
-
-			if (!compressedPackage.TryReadHeader(out header) || !TrySlicePayload(ref compressedPackage, out var opcode))
+			if (!decompressed_package.TryReadHeader(out header) || !TrySlicePayload(ref decompressed_package, out var opcode))
 				throw new InvalidDataException(SR.Invalid_MsgBag);
 			else
-				message_package = new(in compressedPackage, opcode);
+				message_package = new(decompressed_package.End, opcode);
 		}
 
 		/// <summary>
@@ -335,6 +344,11 @@ namespace DanmakuR.Protocol
 					responseMessage = new HandshakeResponseMessage(null);
 					return true;
 				}
+				else if (code == Constants.WS_AUTH_TOKEN_ERROR) 
+				{
+					responseMessage = new HandshakeResponseMessage("WS_AUTH_TOKEN_ERROR");
+					return true;
+				}
 				else
 				{
 					// TODO: 也放进SR
@@ -342,7 +356,7 @@ namespace DanmakuR.Protocol
 					return true;
 				}
 			}
-			catch (Exception ex)
+			catch (InvalidDataException ex)
 			{
 				responseMessage = new HandshakeResponseMessage(ex.Message);
 				return true;

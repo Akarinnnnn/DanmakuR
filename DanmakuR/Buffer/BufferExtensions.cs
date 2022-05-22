@@ -108,7 +108,7 @@ namespace DanmakuR.Buffer
 		/// </summary>
 		/// <param name="data">解压后的数据</param>
 		/// <exception cref="InvalidDataException"><paramref name="data"/>包含无效数据</exception>
-		public static void DecompressDeflate(ref this ReadOnlySequence<byte> data)
+		public static void DecompressDeflate(ref this ReadOnlySequence<byte> data, out ReadOnlySequence<byte> decompressed)
 		{
 			ReadOnlySequenceStream src = new (ref data);
 			using DeflateStream decoder = new(src, CompressionMode.Decompress);
@@ -119,7 +119,7 @@ namespace DanmakuR.Buffer
 			int isended = decoder.ReadByte();
 			if (isended == -1)
 			{
-				data = new(currentDecompressed[..decodedLength]);
+				decompressed = new(currentDecompressed[..decodedLength]);
 			}
 			else
 			{
@@ -139,9 +139,9 @@ namespace DanmakuR.Buffer
 					isended = decoder.ReadByte();
 				}
 				if (last != null)
-					data = new ReadOnlySequence<byte>(first, 0, last, last.Memory.Length);
+					decompressed = new ReadOnlySequence<byte>(first, 0, last, last.Memory.Length);
 				else
-					data = new ReadOnlySequence<byte>(first.Memory);
+					decompressed = new ReadOnlySequence<byte>(first.Memory);
 			}
 		}
 
@@ -150,9 +150,9 @@ namespace DanmakuR.Buffer
 		/// </summary>
 		/// <param name="data">解压后的数据</param>
 		/// <exception cref="InvalidDataException"><paramref name="data"/>包含无效数据</exception>
-		public static void DecompressBrotli(ref this ReadOnlySequence<byte> data)
+		public static void DecompressBrotli(ref this ReadOnlySequence<byte> data, out ReadOnlySequence<byte> decompressed)
 		{
-			RentBuffer decompressed = new();
+			RentBuffer temp = new();
 			using BrotliDecoder decoder = new();
 			int estmatedBuffSize = unchecked((int)Math.Min(data.Length * 3, 16384));
 
@@ -161,14 +161,14 @@ namespace DanmakuR.Buffer
 				int totalConsumed = 0;
 				int totalWritten = 0;
 			rerun:
-				decompressed.Reset(estmatedBuffSize, true);
+				temp.Reset(estmatedBuffSize, true);
 
-				var status = decoder.Decompress(data.FirstSpan[totalConsumed..], decompressed.Span[totalWritten..],
+				var status = decoder.Decompress(data.FirstSpan[totalConsumed..], temp.Span[totalWritten..],
 					out int consumed, out int written);
 				switch (status)
 				{
 					case OperationStatus.Done:
-						data = new(decompressed.Buff.AsMemory(0, written));
+						decompressed = new(temp.Buff.AsMemory(0, written));
 						return;
 					case OperationStatus.DestinationTooSmall:
 						totalConsumed += consumed;
@@ -269,11 +269,11 @@ namespace DanmakuR.Buffer
 				}
 
 				if (first != null)
-					data = new ReadOnlySequence<byte>(first, 0,
+					decompressed = new ReadOnlySequence<byte>(first, 0,
 						(last ?? first).SetNext(currentStore[..currentStored], runningIndex),
 						currentStored);
 				else
-					data = new ReadOnlySequence<byte>(firstbuffer.AsMemory(0, unchecked((int)totalWritten)));
+					decompressed = new ReadOnlySequence<byte>(firstbuffer.AsMemory(0, unchecked((int)totalWritten)));
 				return;
 			}
 		}
