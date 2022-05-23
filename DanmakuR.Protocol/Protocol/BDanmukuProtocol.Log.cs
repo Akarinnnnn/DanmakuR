@@ -1,9 +1,8 @@
-﻿using System.Text.Json;
+﻿using Microsoft.Extensions.Logging;
 
 namespace DanmakuR.Protocol;
 
-
-internal partial class BDanmakuProtocol
+public partial class BDanmakuProtocol
 {
 	private static partial class Log
 	{

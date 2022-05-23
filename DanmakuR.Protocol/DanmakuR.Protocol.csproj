@@ -10,6 +10,7 @@
 		<InternalsVisibleTo Include="DanmakuRTests" />
 		<InternalsVisibleTo Include="DanmakuR" />
 		<PackageReference Include="Microsoft.AspNetCore.SignalR.Common" Version="6.0.5" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>
