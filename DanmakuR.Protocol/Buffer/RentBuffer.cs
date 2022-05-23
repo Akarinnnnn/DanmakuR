@@ -1,7 +1,7 @@
 ﻿using System.Buffers;
 using System.Runtime.CompilerServices;
 
-namespace DanmakuR.Buffer
+namespace DanmakuR.Protocol.Buffer
 {
 	/// <summary>
 	/// 从<see cref="ArrayPool{T}"/>租用缓冲区
@@ -12,7 +12,7 @@ namespace DanmakuR.Buffer
 
 		public RentBuffer()
 		{
-			
+
 		}
 
 		public byte[] Buff
@@ -33,7 +33,7 @@ namespace DanmakuR.Buffer
 			if (size != 0)
 			{
 				newbuff = ArrayPool<byte>.Shared.Rent(size);
-				if(moveToNew && buff != null)
+				if (moveToNew && buff != null)
 				{
 					if (size >= buff.Length)
 						buff.AsSpan().CopyTo(newbuff);

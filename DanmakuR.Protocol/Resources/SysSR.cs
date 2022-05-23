@@ -1,6 +1,6 @@
 ﻿using System.Resources;
 
-namespace DanmakuR.Resources;
+namespace DanmakuR.Protocol.Resources;
 
 internal static class SysSR
 {

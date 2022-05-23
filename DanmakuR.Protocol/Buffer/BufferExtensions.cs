@@ -1,11 +1,11 @@
 ﻿using DanmakuR.Protocol.Model;
-using DanmakuR.Resources;
+using DanmakuR.Protocol.Resources;
 using System.Buffers;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using static System.Buffers.Binary.BinaryPrimitives;
 
-namespace DanmakuR.Buffer
+namespace DanmakuR.Protocol.Buffer
 {
 	public static class BufferExtensions
 	{
@@ -99,7 +99,7 @@ namespace DanmakuR.Buffer
 			else
 			{
 				SequenceReader<byte> r = new(input);
-				return TryReadPayloadHeader(ref r, out header);
+				return r.TryReadPayloadHeader(out header);
 			}
 		}
 
@@ -110,7 +110,7 @@ namespace DanmakuR.Buffer
 		/// <exception cref="InvalidDataException"><paramref name="data"/>包含无效数据</exception>
 		public static void DecompressDeflate(ref this ReadOnlySequence<byte> data, out ReadOnlySequence<byte> decompressed)
 		{
-			ReadOnlySequenceStream src = new (ref data);
+			ReadOnlySequenceStream src = new(ref data);
 			using DeflateStream decoder = new(src, CompressionMode.Decompress);
 			int estmatedBuffSize = unchecked((int)Math.Min(data.Length * 3, 16384));
 

@@ -1,4 +1,4 @@
-﻿using DanmakuR.Buffer;
+﻿using DanmakuR.Protocol.Buffer;
 using DanmakuR.Protocol.Model;
 using DanmakuR.Protocol.Resources;
 using Microsoft.AspNetCore.Connections;

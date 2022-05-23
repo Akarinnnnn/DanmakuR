@@ -1,6 +1,6 @@
 ﻿using System.Buffers;
 
-namespace DanmakuR.Buffer
+namespace DanmakuR.Protocol.Buffer
 {
 	public class SimpleSegment : ReadOnlySequenceSegment<byte>
 	{
@@ -12,7 +12,7 @@ namespace DanmakuR.Buffer
 
 		public SimpleSegment(byte[] buff, long runningIndex) : this(buff.AsMemory(), runningIndex)
 		{
-			
+
 		}
 
 		public SimpleSegment SetNext(byte[] buff, long runinngIndex)

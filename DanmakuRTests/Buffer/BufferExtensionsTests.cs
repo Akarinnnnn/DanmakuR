@@ -1,5 +1,4 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using DanmakuR.Buffer;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Buffers;
+using DanmakuR.Protocol.Buffer;
 
 namespace DanmakuR.Buffer.Tests
 {

@@ -1,8 +1,8 @@
-﻿using DanmakuR.Resources;
+﻿using DanmakuR.Protocol.Resources;
 using System;
 using System.Buffers;
 
-namespace DanmakuR.Buffer
+namespace DanmakuR.Protocol.Buffer
 {
 	public class ReadOnlySequenceStream : Stream
 	{
@@ -18,7 +18,8 @@ namespace DanmakuR.Buffer
 		public override bool CanSeek => true;
 		public override bool CanWrite => false;
 		public override long Length => seq.Length;
-		public override long Position {
+		public override long Position
+		{
 			get => position;
 			set
 			{
