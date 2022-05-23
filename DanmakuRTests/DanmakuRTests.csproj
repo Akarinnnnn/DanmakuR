@@ -15,12 +15,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DanmakuR\DanmakuR.csproj" />
+    <Compile Remove="data\*.cs" />
+    <Content Include="data\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="data\*.cs" />
-    <Content Include="data\*" CopyToOutputDirectory="PreserveNewest"/>
+    <ProjectReference Include="..\DanmakuR.Protocol\DanmakuR.Protocol.csproj" />
   </ItemGroup>
 
 </Project>

@@ -5,7 +5,17 @@ VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DanmakuR", "DanmakuR\DanmakuR.csproj", "{D18FA492-373D-48E9-A5FB-85611278E2C4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DanmakuRTests", "DanmakuRTests\DanmakuRTests.csproj", "{B128247C-2F43-4F8D-9DEA-9C814BA91479}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DanmakuRTests", "DanmakuRTests\DanmakuRTests.csproj", "{B128247C-2F43-4F8D-9DEA-9C814BA91479}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DanmakuR.Protocol", "DanmakuR.Protocol\DanmakuR.Protocol.csproj", "{C021F43D-831E-4375-A460-CABF435F2A6C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "怪东西", "怪东西", "{7313F5A9-4796-4EDA-B0F7-1198F5DC25B9}"
+	ProjectSection(SolutionItems) = preProject
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+		Directory.Build.props = Directory.Build.props
+		LICENSE.txt = LICENSE.txt
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +31,10 @@ Global
 		{B128247C-2F43-4F8D-9DEA-9C814BA91479}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B128247C-2F43-4F8D-9DEA-9C814BA91479}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B128247C-2F43-4F8D-9DEA-9C814BA91479}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C021F43D-831E-4375-A460-CABF435F2A6C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C021F43D-831E-4375-A460-CABF435F2A6C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C021F43D-831E-4375-A460-CABF435F2A6C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C021F43D-831E-4375-A460-CABF435F2A6C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
