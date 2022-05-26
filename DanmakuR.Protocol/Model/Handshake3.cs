@@ -12,6 +12,12 @@ namespace DanmakuR.Protocol.Model
 		[JsonExtensionData]
 		public IDictionary<string, object> AdditionalAuthParams { get; set; }
 
+		[JsonConstructor]
+		public Handshake3()
+		{
+			AdditionalAuthParams = new Dictionary<string, object>();
+		}
+
 		public Handshake3(IDictionary<string, object> authParams)
 		{
 			AdditionalAuthParams = authParams;

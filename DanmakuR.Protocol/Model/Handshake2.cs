@@ -1,5 +1,5 @@
 ﻿using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.SignalR.Client;
+
 namespace DanmakuR.Protocol.Model
 {
 	/// <summary>
@@ -33,20 +33,24 @@ namespace DanmakuR.Protocol.Model
 		/// </summary>
 		public int? Uid = null;
 		/// <summary>
-		/// 不知道啥，总之写2
+		/// 2无需身份验证，3可以验证，也许能给房管用
 		/// </summary>
 		public int? Type = null;
-
+		/// <summary>
+		/// CDN Token
+		/// </summary>
+		[JsonPropertyName("key")]
+		public string? CdnToken = null;
 		/// <summary>
 		/// 确保值有效
 		/// </summary>
-		/// <remarks>将无效<see cref="type"/>改成2，<see cref="protover"/>改成2</remarks>
+		/// <remarks>将无效<see cref="type"/>改成2，<see cref="protover"/>改成3</remarks>
 		public void EnsureValid()
 		{
 			if (Type != null && Type != 2)
 				Type = 2;
 			if (Protover != null && Protover != 2 && Protover != 1)
-				Protover = 2;
+				Protover = 3;
 		}
 	}
 }

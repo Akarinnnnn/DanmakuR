@@ -8,6 +8,7 @@ namespace DanmakuR.Protocol
 	{
 		public JsonSerializerOptions SerializerOptions { get; set; }
 		public Handshake2 HandshakeSettings { get; set; }
+		public TransportTypes TransportType { get; set; }
 		public BDanmakuOptions(IOptions<JsonSerializerOptions?> serializerOptions, IOptions<Handshake2> handshake)
 		{
 			SerializerOptions = serializerOptions.Value	?? new(JsonSerializerDefaults.General);

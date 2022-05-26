@@ -17,6 +17,18 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "怪东西", "怪东西", "{
 		LICENSE.txt = LICENSE.txt
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DanmakuR.Connection", "DanmakuR.Connection\DanmakuR.Connection.csproj", "{195F2E7D-7B8C-433F-BF3D-1714B0F591BF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "参考资料", "参考资料", "{BD706D17-B6EA-4DB7-AFE5-338BFA6A7168}"
+	ProjectSection(SolutionItems) = preProject
+		ref\connection\command_types.ts = ref\connection\command_types.ts
+		ref\connection\connection.ts = ref\connection\connection.ts
+		ref\connection\constants.ts = ref\connection\constants.ts
+		credits.txt = credits.txt
+		ref\connection\frameheaderdef.ts = ref\connection\frameheaderdef.ts
+		ref\connection\utilities.ts = ref\connection\utilities.ts
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,6 +47,10 @@ Global
 		{C021F43D-831E-4375-A460-CABF435F2A6C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C021F43D-831E-4375-A460-CABF435F2A6C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C021F43D-831E-4375-A460-CABF435F2A6C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{195F2E7D-7B8C-433F-BF3D-1714B0F591BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{195F2E7D-7B8C-433F-BF3D-1714B0F591BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{195F2E7D-7B8C-433F-BF3D-1714B0F591BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{195F2E7D-7B8C-433F-BF3D-1714B0F591BF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

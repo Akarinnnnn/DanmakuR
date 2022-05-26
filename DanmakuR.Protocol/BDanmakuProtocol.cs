@@ -346,7 +346,6 @@ public partial class BDanmakuProtocol : IHubProtocol
 			}
 			else
 			{
-				// TODO: 也放进SR
 				responseMessage = new(string.Format("握手失败，错误代码：{0}", code));
 				return true;
 			}

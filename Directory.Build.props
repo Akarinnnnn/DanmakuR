@@ -1,5 +1,7 @@
 ﻿<Project>
 	<PropertyGroup>
 		<SharedSourceRoot>$(MSBuildThisFileDirectory)AspNetCoreShared\</SharedSourceRoot>
+		<OutputType>Library</OutputType>
+		<NeutralLanguage>zh-CN</NeutralLanguage>
 	</PropertyGroup>
 </Project>
