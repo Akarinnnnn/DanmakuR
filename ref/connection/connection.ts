@@ -21,7 +21,7 @@ export class ConnectionOptions {
 	retryConnectCount: number = 3;
 	retryconnectTimeout: number = 1e4;
 	retryRoundInterval: number = Math.floor(2 * Math.random()) + 3;
-	customAuthParam: any[] = [];
+	customAuthParam: { key: string, type: "string" | "boolean" | "number", value: string }[] = [];
 	fallback: Function;
 	heartBeatInterval: number = 30;
 	onReceivedMessage: Function;
@@ -32,7 +32,7 @@ export class ConnectionOptions {
 	onClose: Function;
 	onError: Function;
 	onListConnectError: Function;
-    onRetryFallback: Function;
+	onRetryFallback: Function;
 };
 
 export class AuthInfo { origin: object; encode: ArrayBuffer }
@@ -45,15 +45,15 @@ class ConnectionState {
 }
 
 type CallbackQueues = {
-    onInitializedQueue: Function[];
-    onOpenQueue: Function[];
-    onCloseQueue: Function[];
-    onErrorQueue: Function[];
-    onReceivedMessageQueue: Function[];
-    onHeartBeatReplyQueue: ((e: PopularityMessage) => void)[];
-    onRetryFallbackQueue: Function[];
-    onListConnectErrorQueue: Function[];
-    onReceiveAuthResQueue: Function[];
+	onInitializedQueue: Function[];
+	onOpenQueue: Function[];
+	onCloseQueue: Function[];
+	onErrorQueue: Function[];
+	onReceivedMessageQueue: Function[];
+	onHeartBeatReplyQueue: ((e: PopularityMessage) => void)[];
+	onRetryFallbackQueue: Function[];
+	onListConnectErrorQueue: Function[];
+	onReceiveAuthResQueue: Function[];
 };
 
 type HandshakeV3 = {
@@ -73,9 +73,9 @@ interface PopularityMessage {
 }
 
 interface Packet {
-    body: Packet[] | Message | PopularityMessage;
-    packetLen: number;
-    op: number;
+	body: Packet[] | Message | PopularityMessage;
+	packetLen: number;
+	op: number;
 	ver: number;
 	seq?: number;
 };
@@ -83,14 +83,14 @@ interface Packet {
 export class Connection {
 	options: ConnectionOptions;
 	wsBinaryHeaderList: HeaderField[];
-    authInfo: AuthInfo;
-    state: ConnectionState;
-    callbackQueueList: CallbackQueues;
-    HEART_BEAT_INTERVAL: number;
-    CONNECT_TIMEOUT: number;
-    ws: WebSocket;
-    encoder: TextEncoder;
-    decoder: TextDecoder;
+	authInfo: AuthInfo;
+	state: ConnectionState;
+	callbackQueueList: CallbackQueues;
+	HEART_BEAT_INTERVAL: number;
+	CONNECT_TIMEOUT: number;
+	ws: WebSocket;
+	encoder: TextEncoder;
+	decoder: TextDecoder;
 	constructor(opt: any) {
 		if (Connection.checkOptions(opt)) {
 			var defaultopt = new ConnectionOptions;
@@ -167,22 +167,22 @@ export class Connection {
 	userAuthentication() {
 		var opt = this.options;
 
-		var payload: HandshakeV3 =
+		var authOrigin: HandshakeV3 =
 		{
 			uid: parseInt(opt.uid, 10),
 			roomid: parseInt(opt.rid, 10),
 			protover: 3,
 		};
 		if (opt.aid) {
-			payload.aid = parseInt(opt.aid, 10);
+			authOrigin.aid = parseInt(opt.aid, 10);
 		}
 		if (parseInt(opt.from, 10) > 0) {
-			payload.from = parseInt(opt.from, 10) || 7;
+			authOrigin.from = parseInt(opt.from, 10) || 7;
 		}
 		for (var i = 0; i < opt.customAuthParam.length; i++) {
 			var param = opt.customAuthParam[i];
 			var paramtype = param.type || 'string';
-			switch ((payload[param.key] !== void 0 &&
+			switch ((authOrigin[param.key] !== undefined &&
 				console.error(
 					'Token has the same key already! \u3010' +
 					param.key +
@@ -198,13 +198,13 @@ export class Connection {
 				),
 				paramtype)) {
 				case 'string':
-					payload[param.key] = param.value;
+					authOrigin[param.key] = param.value;
 					break;
 				case 'number':
-					payload[param.key] = parseInt(param.value, 10);
+					authOrigin[param.key] = parseInt(param.value, 10);
 					break;
 				case 'boolean':
-					payload[param.key] = !!payload[param.value];
+					authOrigin[param.key] = !!authOrigin[param.value];
 					break;
 				default:
 					console.error(
@@ -215,14 +215,14 @@ export class Connection {
 					return;
 			}
 		}
-		var encoder = this.convertToArrayBuffer(
-			JSON.stringify(payload),
+		var encoded = this.convertToArrayBuffer(
+			JSON.stringify(authOrigin),
 			constants.WS_OP_USER_AUTHENTICATION
 		);
-		this.authInfo.origin = payload;
-		this.authInfo.encode = encoder;
+		this.authInfo.origin = authOrigin;
+		this.authInfo.encode = encoded;
 		setTimeout(function () {
-			this.ws.send(encoder);
+			this.ws.send(encoded);
 		}, 0);
 	}
 	getAuthInfo() {
@@ -265,7 +265,7 @@ export class Connection {
 						this.onMessageReply(n.body, n.seq);
 						break;
 					case constants.WS_OP_CONNECT_SUCCESS:
-						if ((n.body as {code?:number}[]).length !== 0 && n.body[0]?.code !== void 0) {
+						if ((n.body as { code?: number }[]).length !== 0 && n.body[0]?.code !== void 0) {
 							switch (n.body[0].code) {
 								case constants.WS_AUTH_OK:
 									this.heartBeat();
@@ -290,7 +290,7 @@ export class Connection {
 		}
 		return this;
 	}
-	onMessageReply(e: Function[] | object , t: number) {
+	onMessageReply(e: Function[] | object, t: number) {
 		var n = this;
 		try {
 			if (e instanceof Array) {
@@ -450,7 +450,7 @@ export class Connection {
 						parsed = jsonobj.length !== 0 ? JSON.parse(jsonobj) : null;
 					} else if (ret.ver === constants.WS_BODY_PROTOCOL_VERSION_BROTLI) {
 						var realJson = buffer.slice(currentPos + currentHeaderLen, currentPos + currentPacketLen);
-						function BrotliDecode(buff: Uint8Array): { buffer: ArrayBuffer;} { throw null };
+						function BrotliDecode(buff: Uint8Array): { buffer: ArrayBuffer; } { throw null };
 						var decoded = BrotliDecode(new Uint8Array(realJson));
 						parsed = this.convertToObject(decoded.buffer).body as Packet[];
 					}
