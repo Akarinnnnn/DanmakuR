@@ -41,16 +41,23 @@ namespace DanmakuR.Protocol.Model
 		/// </summary>
 		[JsonPropertyName("key")]
 		public string? CdnToken = null;
+
+		public long Aid;
+		public long? From;
+
+
 		/// <summary>
 		/// 确保值有效
 		/// </summary>
 		/// <remarks>将无效<see cref="type"/>改成2，<see cref="protover"/>改成3</remarks>
 		public void EnsureValid()
 		{
-			if (Type != null && Type != 2)
-				Type = 2;
-			if (Protover != null && Protover != 2 && Protover != 1)
-				Protover = 3;
+			Type = 2;
+			if (Protover != null && Protover > 3  && Protover < 1)
+				Protover = BDanmakuProtocol.SupportedProtocolVersion;
+
+			From = From > 0 ? From : 7;
+			Aid = Aid == 0 ? 0 : Aid;
 		}
 	}
 }

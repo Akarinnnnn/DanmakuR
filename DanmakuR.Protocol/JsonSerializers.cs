@@ -6,11 +6,11 @@ using DanmakuR.Protocol.Model;
 namespace DanmakuR.Protocol
 {
 	[JsonSerializable(typeof(Handshake2))]
-	[JsonSerializable(typeof(Handshake3))]
 	[JsonSourceGenerationOptions(IgnoreReadOnlyFields = false, 
 		WriteIndented = false,
 		PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-		IncludeFields = true)]
+		IncludeFields = true,
+		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 	internal partial class HandshakeJsonContext : JsonSerializerContext
 	{
 
@@ -27,17 +27,11 @@ namespace DanmakuR.Protocol
 			};
 			options.AddContext<HandshakeJsonContext>();
 		}
-
+		internal static JsonSerializerOptions RecommedOptions => options;
 		internal static void Serialize(this Handshake2 handshake, IBufferWriter<byte> buffer)
 		{
 			using Utf8JsonWriter writer = new(buffer);
-			JsonSerializer.Serialize(writer, handshake, typeof(Handshake2), options);
-		}
-
-		internal static void Serialize(this Handshake3 handshake3, IBufferWriter<byte> buffer)
-		{
-			using Utf8JsonWriter writer = new(buffer);
-			JsonSerializer.Serialize(writer, handshake3, typeof(Handshake3), options);
+			JsonSerializer.Serialize(writer, handshake, options);
 		}
 	}
 }

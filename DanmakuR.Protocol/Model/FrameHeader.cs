@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace DanmakuR.Protocol.Model;
 
@@ -22,22 +23,22 @@ internal enum OpCode : int
 	Connected = 8
 }
 
+// 按顺序排，序列化要用
+[StructLayout(LayoutKind.Sequential, Size = 16)]
 internal struct FrameHeader
 {
-	public FrameHeader(int frameLength, short headerLength, short version, int opCode, int seqId)
+	private const int ClDefaultSequence = Constants.WS_HEADER_DEFAULT_SEQUENCE;
+
+	public FrameHeader()
 	{
-		FrameLength = frameLength;
-		HeaderLength = headerLength;
-		_version = version;
-		_opcode = opCode;
-		SequenceId = seqId;
+
 	}
 
-	public int FrameLength;
+	public int FrameLength = 0;
 	public short HeaderLength = 16;
-	public short _version;
-	public int _opcode;
-	public int SequenceId = 1;
+	public short _version = 0;
+	public int _opcode = 0;
+	public int SequenceId = ClDefaultSequence;
 
 
 	public OpCode OpCode

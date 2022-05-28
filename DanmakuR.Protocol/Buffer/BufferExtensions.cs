@@ -3,22 +3,13 @@ using DanmakuR.Protocol.Resources;
 using System.Buffers;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using static System.Buffers.Binary.BinaryPrimitives;
 
 namespace DanmakuR.Protocol.Buffer
 {
 	public static class BufferExtensions
 	{
-		internal static void WriteHeader(this IBufferWriter<byte> buff, ref FrameHeader header)
-		{
-			Span<byte> span = buff.GetSpan(16);
-			WriteInt32BigEndian(span, header.FrameLength);
-			WriteInt16BigEndian(span, header.HeaderLength);
-			WriteInt16BigEndian(span, (short)header.Version);
-			WriteInt32BigEndian(span, (int)header.OpCode);
-			WriteInt32BigEndian(span, header.SequenceId);
-			buff.Advance(header.HeaderLength);
-		}
 
 		// 排除CR LF，NUL、RS放前边
 		private static readonly byte[] delimiters =
@@ -54,28 +45,43 @@ namespace DanmakuR.Protocol.Buffer
 			return null;
 		}
 
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private static void ReverseEndiannessIfLE(ref FrameHeader header)
+		{
+			if(BitConverter.IsLittleEndian)
+			{
+				header.FrameLength = ReverseEndianness(header.FrameLength);
+				header.HeaderLength = ReverseEndianness(header.HeaderLength);
+				header._version = ReverseEndianness(header._version);
+				header._opcode = ReverseEndianness(header._opcode);
+				header.SequenceId = ReverseEndianness(header.SequenceId);
+			}
+		}
+
+		/// <remarks>
+		/// 包成功，除非出bug
+		/// </remarks>
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		private static void TryReadHeaderMultiSegment(in ReadOnlySequence<byte> input, out FrameHeader header)
+		{
+			SequenceReader<byte> r = new(input);
+			Span<byte> retrived = stackalloc byte[16];
+			r.TryCopyTo(retrived);
+
+			header = MemoryMarshal.Read<FrameHeader>(retrived);
+			ReverseEndiannessIfLE(ref header);
+
+			if (header.HeaderLength < 16)
+				throw new InvalidDataException($"{nameof(FrameHeader)}.{nameof(header.HeaderLength)}过短：" +
+					$"读到的值为{header.HeaderLength}；正常情况至少16");
+		}
 
 		/// <summary>
 		/// 
 		/// </summary>
-		/// <param name="r"></param>
-		/// <param name="header">返回<see langword="false"/>时可能含有未初始化的数据</param>
-		/// <returns><see langword="true"/>成功</returns>
-		internal static bool TryReadPayloadHeader(this ref SequenceReader<byte> r, out FrameHeader header)
-		{
-			Unsafe.SkipInit(out header);
-			bool result = r.TryReadBigEndian(out header.FrameLength) &&
-				r.TryReadBigEndian(out header.HeaderLength) &&
-				r.TryReadBigEndian(out header._version) &&
-				r.TryReadBigEndian(out header._opcode) &&
-				r.TryReadBigEndian(out header.SequenceId);
-
-			if (header.HeaderLength < 16)
-				return false;
-
-			return result;
-		}
-
+		/// <param name="input"></param>
+		/// <param name="header"></param>
+		/// <returns>返回<see langword="false"/>说明数据不够，等数据凑齐再说</returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal static bool TryReadHeader(this in ReadOnlySequence<byte> input, out FrameHeader header)
 		{
@@ -85,22 +91,25 @@ namespace DanmakuR.Protocol.Buffer
 				return false;
 			}
 
-			if (input.FirstSpan.Length >= 16)
+			ReadOnlySpan<byte> firstSpan = input.FirstSpan;
+			if (firstSpan.Length >= 16)
 			{
-				ReadOnlySpan<byte> head = input.FirstSpan[..16];
-				header = new(ReadInt32BigEndian(head),
-					ReadInt16BigEndian(head[4..]),
-					ReadInt16BigEndian(head[6..]),
-					ReadInt32BigEndian(head[8..]),
-					ReadInt32BigEndian(head[12..]));
-
+				header = MemoryMarshal.Read<FrameHeader>(firstSpan);
+				ReverseEndiannessIfLE(ref header);
 				return true;
 			}
 			else
 			{
-				SequenceReader<byte> r = new(input);
-				return r.TryReadPayloadHeader(out header);
+				TryReadHeaderMultiSegment(input, out header);
+				return true;
 			}
+		}
+		internal static void WriteToOutput(this FrameHeader header, IBufferWriter<byte> buff)
+		{
+			Span<byte> span = buff.GetSpan(Unsafe.SizeOf<FrameHeader>());
+			ReverseEndiannessIfLE(ref header);
+			MemoryMarshal.Write(span, ref header);
+			buff.Advance(header.HeaderLength);
 		}
 
 		/// <summary>
@@ -160,15 +169,19 @@ namespace DanmakuR.Protocol.Buffer
 			{
 				int totalConsumed = 0;
 				int totalWritten = 0;
+				// 看了一圈源码，IsSingleSegment时FirstSpan走的是慢路径
+				// 链接 https://source.dot.net/#System.Memory/System/Buffers/ReadOnlySequence.Helpers.cs
+				// FirstSpan直接跳到GetFirstSpan，再转GetFirstSpanSlow
+				ReadOnlySpan<byte> dataSpan = data.FirstSpan;
 			rerun:
 				temp.Reset(estmatedBuffSize, true);
 
-				var status = decoder.Decompress(data.FirstSpan[totalConsumed..], temp.Span[totalWritten..],
+				var status = decoder.Decompress(dataSpan[totalConsumed..], temp.Span[totalWritten..],
 					out int consumed, out int written);
 				switch (status)
 				{
 					case OperationStatus.Done:
-						decompressed = new(temp.Buff.AsMemory(0, written));
+						decompressed = new(temp.Buff, 0, written);
 						return;
 					case OperationStatus.DestinationTooSmall:
 						totalConsumed += consumed;
@@ -231,6 +244,7 @@ namespace DanmakuR.Protocol.Buffer
 					}
 
 					// 第一段有点剩的
+					// IMPROVE [PERF]: 感觉没啥必要，brDecoder自带32K缓冲区
 					// 接起第一段剩下的和下一段的开头，放到middle中
 					if (status == OperationStatus.NeedMoreData && currentSrc.Length != consumed)
 					{

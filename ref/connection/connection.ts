@@ -35,7 +35,7 @@ export class ConnectionOptions {
 	onRetryFallback: Function;
 };
 
-export class AuthInfo { origin: object; encode: ArrayBuffer }
+export class AuthInfo { origin: HandshakeBase; encode: ArrayBuffer }
 
 class ConnectionState {
 	retryCount: number = 0;
@@ -56,7 +56,7 @@ type CallbackQueues = {
 	onReceiveAuthResQueue: Function[];
 };
 
-type HandshakeV3 = {
+type HandshakeBase = {
 	uid: number;
 	roomid: number;
 	protover: number;
@@ -167,7 +167,7 @@ export class Connection {
 	userAuthentication() {
 		var opt = this.options;
 
-		var authOrigin: HandshakeV3 =
+		var authOrigin: HandshakeBase =
 		{
 			uid: parseInt(opt.uid, 10),
 			roomid: parseInt(opt.rid, 10),
@@ -184,17 +184,11 @@ export class Connection {
 			var paramtype = param.type || 'string';
 			switch ((authOrigin[param.key] !== undefined &&
 				console.error(
-					'Token has the same key already! \u3010' +
-					param.key +
-					'\u3011'
+					`Token has the same key already! \u3010${param.key}\u3011`
 				),
 				(param.key.toString() && param.value.toString()) ||
 				console.error(
-					'Invalid customAuthParam, missing key or value! \u3010' +
-					param.key +
-					'\u3011-\u3010' +
-					param.value +
-					'\u3011'
+					`Invalid customAuthParam, missing key or value! \u3010${param.key}\u3011-\u3010${param.value}\u3011`
 				),
 				paramtype)) {
 				case 'string':
@@ -208,9 +202,7 @@ export class Connection {
 					break;
 				default:
 					console.error(
-						'Unsupported customAuthParam type!\u3010' +
-						paramtype +
-						'\u3011'
+						`Unsupported customAuthParam type!\u3010${paramtype}\u3011`
 					);
 					return;
 			}

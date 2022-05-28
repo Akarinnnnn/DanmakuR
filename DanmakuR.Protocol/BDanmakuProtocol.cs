@@ -34,7 +34,8 @@ public partial class BDanmakuProtocol : IHubProtocol
 
 	private static readonly string full_name = typeof(BDanmakuProtocol).FullName!;
 	public string Name => full_name;
-	public int Version => 3;
+	internal const int SupportedProtocolVersion = Constants.WS_BODY_PROTOCOL_VERSION_BROTLI;
+	public int Version => SupportedProtocolVersion;
 	public TransferFormat TransferFormat => TransferFormat.Binary;
 	private MessagePackage message_package = default;
 	private ReadOnlySequence<byte> decompressed_package = default;
@@ -243,7 +244,7 @@ public partial class BDanmakuProtocol : IHubProtocol
 	/// <exception cref="OverflowException" />
 	public void WriteMessage(HubMessage message, IBufferWriter<byte> output)
 	{
-		if (ReferenceEquals(message, PingMessage.Instance) || message is PingMessage)
+		if (ReferenceEquals(message, PingMessage.Instance) || message.GetType() == typeof(PingMessage))
 			ping_message.CopyTo(output.GetSpan(16));
 
 		var tempBuffer = MemoryBufferWriter.Get();
@@ -251,31 +252,21 @@ public partial class BDanmakuProtocol : IHubProtocol
 		{
 			FrameHeader header = new();
 			WriteMessageCore(message, tempBuffer, ref header);
-			output.WriteHeader(ref header);
+			header.WriteToOutput(output);
 			tempBuffer.CopyTo(output);
 		}
 		finally
 		{
 			MemoryBufferWriter.Return(tempBuffer);
 		}
-
-		throw new NotImplementedException();
 	}
 
 	private void WriteRequestMessageCore(HandshakeRequestMessage m, MemoryBufferWriter temp, ref FrameHeader header)
 	{
 
-		if (m.Protocol == Name && m.Version == Version)
+		if (m.Protocol == full_name && m.Version == SupportedProtocolVersion)
 		{
-			switch (options.HandshakeSettings)
-			{
-				case Handshake3 v3:
-					v3.Serialize(temp);
-					break;
-				default:
-					options.HandshakeSettings.Serialize(temp);
-					break;
-			}
+			options.HandshakeSettings.Serialize(temp);
 			header.OpCode = OpCode.ConnectAndAuth;
 			header.FrameLength = checked((int)(header.HeaderLength + temp.Length));
 		}
@@ -284,9 +275,9 @@ public partial class BDanmakuProtocol : IHubProtocol
 			throw new HubException(string.Format(SR.Protocol_Mismatch,
 				m.Protocol,
 				m.Version.ToString(),
-				Name,
-				Version.ToString()
-				));
+				full_name,
+				SupportedProtocolVersion.ToString()
+			));
 		}
 	}
 
@@ -312,10 +303,12 @@ public partial class BDanmakuProtocol : IHubProtocol
 	public void WriteRequestMessage(HandshakeRequestMessage requestMessage, IBufferWriter<byte> output)
 	{
 		MemoryBufferWriter writer = MemoryBufferWriter.Get();
-		FrameHeader hreder = new();
+		FrameHeader header = new();
 		try
 		{
-			WriteRequestMessageCore(requestMessage, writer, ref hreder);
+			WriteRequestMessageCore(requestMessage, writer, ref header);
+			header.WriteToOutput(output);
+			writer.CopyTo(output);
 		}
 		finally
 		{
@@ -323,16 +316,24 @@ public partial class BDanmakuProtocol : IHubProtocol
 		}
 	}
 
+	[SuppressMessage("Performance", "CA1822:将成员标记为 static", Justification = "留个接口？")]
 	public bool TryParseResponseMessage(ref ReadOnlySequence<byte> buffer, [NotNullWhen(true)] out HandshakeResponseMessage? responseMessage)
 	{
-		bool result = TrySliceInput(in buffer, out var response, out _);
-		if (!result)
+		if (!TrySliceInput(in buffer, out var response, out _))
 		{
 			responseMessage = null;
 			return false;
 		}
+		// 同一个Sequence切下来的就可以这么搞
+		buffer = buffer.Slice(response.End);
 		try
 		{
+			if (HandshakeResponse.IsTemplateSuccessful(in response))
+			{
+				responseMessage = new HandshakeResponseMessage(null);
+				return true;
+			}
+
 			var code = HandshakeResponse.ParseResponse(new(response));
 			if (code == 0)
 			{
