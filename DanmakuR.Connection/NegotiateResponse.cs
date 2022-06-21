@@ -7,7 +7,7 @@ namespace DanmakuR.Connection;
 public class NegotiateResponse
 {
 	[JsonConstructor]
-	public NegotiateResponse(int code, string message, NegotiateData data)
+	public NegotiateResponse(int code, string? message, NegotiateData data)
 	{
 		this.code = code;
 		this.message = message;
@@ -63,7 +63,7 @@ public struct Host
 [JsonSerializable(typeof(NegotiateData))]
 [JsonSerializable(typeof(Host))]
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.Unspecified,
-	GenerationMode = JsonSourceGenerationMode.Serialization)]
+	GenerationMode = JsonSourceGenerationMode.Default)]
 public partial class NegotiateContext : JsonSerializerContext
 {
 	

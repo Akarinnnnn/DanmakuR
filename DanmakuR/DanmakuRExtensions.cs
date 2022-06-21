@@ -5,96 +5,56 @@ using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.AspNetCore.Connections;
 
+using DanmakuR.Connection;
 using DanmakuR.Protocol;
 using DanmakuR.Protocol.Model;
 using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
 using System.Net;
+using Microsoft.AspNetCore.Http.Connections.Client;
 
 namespace DanmakuR
 {
 	public static class DanmakuRExtensions
 	{
-		private const string KerstrelFactory = "Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionFactory";
-
-		public static IHubConnectionBuilder UseBDanmakuProtocol(this IHubConnectionBuilder builder)
+		public static IHubConnectionBuilder UseBLiveProtocol(this IHubConnectionBuilder builder,
+			TransportTypes transportType = TransportTypes.RawSocket,
+			Action<BLiveOptions>? configureOptions = null)
 		{
 			builder.Services.RemoveAll<IHubProtocol>()
-				.AddSingleton<IHubProtocol, BDanmakuProtocol>();
-			
-			return builder;
-		}
-
-		/// <summary>
-		/// 添加<see cref="SocketConnectionFactory"/>
-		/// </summary>
-		/// <param name="builder"></param>
-		public static IHubConnectionBuilder UseRawSocketTransport(this IHubConnectionBuilder builder)
-		{
-			Type kestrelFactory = typeof(SocketTransportFactory).Assembly.GetType(KerstrelFactory, true, false)!;
-			builder.Services.AddSingleton(kestrelFactory, typeof(IConnectionFactory));
-			return builder;
-		}
-
-		public static IHubConnectionBuilder AddSocketOptions(this IHubConnectionBuilder builder, Action<SocketConnectionFactoryOptions>? configure)
-		{
-			builder.Services.AddOptions<SocketConnectionFactoryOptions>()
-				.Configure(configure);
-			return builder;
-		}
-
-		public static IHubConnectionBuilder AddHandshake(this IHubConnectionBuilder builder, Action<Handshake2> configure)
-		{
-			builder.Services.AddOptions<Handshake2>()
-				.Configure(configure)
-				.PostConfigure(opt => opt.EnsureValid());
+				.AddBLiveProtocol()
+				.RemoveAll<IConnectionFactory>()
+				.AddSingleton<IConnectionFactory, HandshakeProxiedConnectionFactory>()
+				.AddBLiveOptions(transportType, configureOptions);
 
 			return builder;
 		}
 
-		public static IHubConnectionBuilder AddHandshake3(this IHubConnectionBuilder builder, Action<Handshake3> configure)
+		public static IHubConnectionBuilder WithRoomid(this IHubConnectionBuilder builder, int roomid, Action<Handshake2>? configure = null)
 		{
-			builder.Services.AddOptions<Handshake3>()
-				.Configure(configure)
-				.PostConfigure(opt => opt.EnsureValid());
+			builder.Services.AddHandshake2(roomid, configure);
 
 			return builder;
 		}
 
-		/// <summary>
-		/// 异步添加Socket传输实现，并协商选择第一个socket服务器，同时设置房号
-		/// </summary>
-		/// <param name="builder"></param>
-		/// <param name="roomid">房间号</param>
-		/// <param name="cancellationToken"></param>
-		/// <returns></returns>
-		/// <exception cref="System.Net.Sockets.SocketException">DNS解析失败</exception>
-		public static async ValueTask<IHubConnectionBuilder> WithSocketEndpointAsync(this IHubConnectionBuilder builder, 
-			int roomid, CancellationToken cancellationToken = default)
+		public static IHubConnectionBuilder UseSocketTransport(this IHubConnectionBuilder builder, 
+			Action<SocketConnectionFactoryOptions> configureOption)
 		{
-			string negotiateEndpoint = $"https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id={roomid}";
-			using HttpClient client = new ();
-			var result = await client.GetFromJsonAsync<Negotiate>(negotiateEndpoint, NegotiateContext.Default.Options, cancellationToken);
+			builder.Services.Configure<BLiveOptions>(opt => opt.TransportType = TransportTypes.RawSocket)
+				.AddOptions<SocketConnectionFactoryOptions>()
+				.Configure(configureOption);
+			return builder;
+		}
 
-			string endpoint;
-			short port;
-			if (result == null || !result.IsValid)
-			{ 
-				endpoint = "broadcastlv.chat.bilibili.com";
-				port = 2243;
-			}
-			else
-			{
-				var chosen = result.data.host_list[0];
-				endpoint = chosen.host;
-				port = chosen.port;
-			}
+		public static IHubConnectionBuilder UseWebsocketTransport(this IHubConnectionBuilder builder,
+			Action<HttpConnectionOptions> configureOptions,
+			bool isSecure)
+		{
+			builder.Services.Configure<BLiveOptions>(opt => opt.TransportType = isSecure
+				? TransportTypes.SecureWebsocket
+				: TransportTypes.InsecureWebsocket)
+				.AddOptions<HttpConnectionOptions>()
+				.Configure(configureOptions);
 
-			IPAddress endpointip = (await Dns.GetHostAddressesAsync(endpoint, cancellationToken))[0];
-			cancellationToken.ThrowIfCancellationRequested();
-
-			builder.Services.AddSingleton<EndPoint>(new IPEndPoint(endpointip, port))
-			.Configure<Handshake2>((opt) => opt.Roomid = roomid);
-			builder.UseRawSocketTransport();
 			return builder;
 		}
 	}

@@ -14,28 +14,19 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Text.Json;
 
+using static DanmakuR.Protocol.BLiveMessageParser;
+
+
 namespace DanmakuR.Protocol;
 
 public partial class BLiveProtocol : IHubProtocol
 {
-	// int32 framelength, int16 headerlength, int16 version, int32 opcode, int32 seqid
-	private static readonly byte[] ping_message =
-	{
-			0, 0, 0, 16,
-			0, 16,
-			0, 1,
-			0, 0, 0, 2,
-			0, 0, 0, 1
-		};
-	private static ReadOnlyMemory<byte> PingMessageMemory => ping_message;
-
 	private readonly BLiveOptions options;
 	private readonly ILogger logger;
 
-	private static readonly string full_name = typeof(BLiveProtocol).FullName!;
-	public string Name => full_name;
-	internal const int SupportedProtocolVersion = Constants.WS_BODY_PROTOCOL_VERSION_BROTLI;
-	public int Version => SupportedProtocolVersion;
+	public string Name => BLiveMessageParser.full_name;
+
+	public int Version => BLiveMessageParser.SupportedProtocolVersion;
 	public TransferFormat TransferFormat => TransferFormat.Binary;
 	private MessagePackage message_package = default;
 	private ReadOnlySequence<byte> decompressed_package = default;
@@ -55,7 +46,7 @@ public partial class BLiveProtocol : IHubProtocol
 	public ReadOnlyMemory<byte> GetMessageBytes(HubMessage message)
 	{
 		if (ReferenceEquals(message, PingMessage.Instance) || message is PingMessage)
-			return PingMessageMemory;
+			return BLiveMessageParser.PingMessageMemory;
 
 		return HubProtocolExtensions.GetMessageBytes(this, message);
 	}
@@ -90,7 +81,7 @@ public partial class BLiveProtocol : IHubProtocol
 			input = input.Slice(message_package.End);
 		}
 
-		if (TrySliceInput(in input, out var payload, out var header))
+		if (BLiveMessageParser.TrySliceInput(in input, out var payload, out var header))
 		{
 			if (header.Version == FrameVersion.Int32BE || header.OpCode == OpCode.Pong)
 			{
@@ -146,6 +137,7 @@ public partial class BLiveProtocol : IHubProtocol
 		return false;
 	}
 
+
 	/// <summary>
 	/// 解析核心
 	/// </summary>
@@ -153,6 +145,7 @@ public partial class BLiveProtocol : IHubProtocol
 	/// <param name="binder"></param>
 	/// <param name="msg"></param>
 	/// <returns></returns>
+	[SuppressMessage("Performance", "CA1822:将成员标记为 static", Justification = "还没写完")]
 	private SequencePosition ParseOne(Utf8JsonReader reader, IInvocationBinder binder, out HubMessage msg)
 	{
 		throw new NotImplementedException();
@@ -183,47 +176,6 @@ public partial class BLiveProtocol : IHubProtocol
 			message_package = new(decompressed_package.End, opcode);
 	}
 
-	/// <summary>
-	/// 从<paramref name="input"/>切出一个数据包
-	/// </summary>
-	/// <param name="input">待解析的数据流</param>
-	/// <param name="payload">数据包内容</param>
-	/// <param name="header"></param>
-	/// <returns></returns>
-	/// <remarks>单元测试需要internal</remarks>
-	internal static bool TrySliceInput(in ReadOnlySequence<byte> input, out ReadOnlySequence<byte> payload, out FrameHeader header)
-	{
-		if (!(input.TryReadHeader(out header) && input.Length > header.FrameLength))
-		{
-			header = default;
-			payload = default;
-			return false;
-		}
-
-		payload = input.Slice(header.HeaderLength, header.FrameLength - header.HeaderLength);
-		return true;
-	}
-
-	/// <summary>
-	/// 从数据包中切出内容
-	/// </summary>
-	/// <param name="input">数据包，返回<see langword="true"/>时，修改为数据包内容</param>
-	/// <param name="opcode"></param>
-	/// <returns></returns>
-	/// <remarks>单元测试需要internal</remarks>
-	internal static bool TrySlicePayload(ref ReadOnlySequence<byte> input, out OpCode opcode)
-	{
-		if (!(input.TryReadHeader(out var header) && input.Length > header.FrameLength))
-		{
-			opcode = OpCode.Invalid;
-			return false;
-		}
-
-		input = input.Slice(header.HeaderLength, header.FrameLength - header.HeaderLength);
-		opcode = header.OpCode;
-		return true;
-	}
-
 	private static void AssertMethodParamTypes(IInvocationBinder binder, string methodName, Type[] types)
 	{
 		var actualTypes = binder.GetParameterTypes(methodName);
@@ -248,7 +200,7 @@ public partial class BLiveProtocol : IHubProtocol
 	public void WriteMessage(HubMessage message, IBufferWriter<byte> output)
 	{
 		if (ReferenceEquals(message, PingMessage.Instance) || message.GetType() == typeof(PingMessage))
-			ping_message.CopyTo(output.GetSpan(16));
+			PingMessageSpan.CopyTo(output.GetSpan(16));
 
 		var tempBuffer = MemoryBufferWriter.Get();
 		try
@@ -264,33 +216,11 @@ public partial class BLiveProtocol : IHubProtocol
 		}
 	}
 
-	private void WriteRequestMessageCore(HandshakeRequestMessage m, MemoryBufferWriter temp, ref FrameHeader header)
-	{
-
-		if (m.Protocol == full_name && m.Version == SupportedProtocolVersion)
-		{
-			options.HandshakeSettings.Serialize(temp);
-			header.OpCode = OpCode.ConnectAndAuth;
-			header.FrameLength = checked((int)(header.HeaderLength + temp.Length));
-		}
-		else
-		{
-			throw new HubException(string.Format(SR.Protocol_Mismatch,
-				m.Protocol,
-				m.Version.ToString(),
-				full_name,
-				SupportedProtocolVersion.ToString()
-			));
-		}
-	}
-
+	[SuppressMessage("Performance", "CA1822:将成员标记为 static", Justification = "也没写完")]
 	private void WriteMessageCore(HubMessage message, MemoryBufferWriter temp, ref FrameHeader header)
 	{
 		switch (message)
 		{
-			case HandshakeRequestMessage m:
-				WriteRequestMessageCore(m, temp, ref header);
-				return;
 			// 这不科学
 			case HandshakeResponseMessage:
 			case CloseMessage:
@@ -301,63 +231,5 @@ public partial class BLiveProtocol : IHubProtocol
 		}
 
 		header.FrameLength = checked((int)(header.HeaderLength + temp.Length));
-	}
-
-	public void WriteRequestMessage(HandshakeRequestMessage requestMessage, IBufferWriter<byte> output)
-	{
-		MemoryBufferWriter writer = MemoryBufferWriter.Get();
-		FrameHeader header = new();
-		try
-		{
-			WriteRequestMessageCore(requestMessage, writer, ref header);
-			header.WriteToOutput(output);
-			writer.CopyTo(output);
-		}
-		finally
-		{
-			MemoryBufferWriter.Return(writer);
-		}
-	}
-
-	[SuppressMessage("Performance", "CA1822:将成员标记为 static", Justification = "留个接口？")]
-	public bool TryParseResponseMessage(ref ReadOnlySequence<byte> buffer, [NotNullWhen(true)] out HandshakeResponseMessage? responseMessage)
-	{
-		if (!TrySliceInput(in buffer, out var response, out _))
-		{
-			responseMessage = null;
-			return false;
-		}
-		// 同一个Sequence切下来的就可以这么搞
-		buffer = buffer.Slice(response.End);
-		try
-		{
-			if (HandshakeResponse.IsTemplateSuccessful(in response))
-			{
-				responseMessage = new HandshakeResponseMessage(null);
-				return true;
-			}
-
-			var code = HandshakeResponse.ParseResponse(new(response));
-			if (code == 0)
-			{
-				responseMessage = new HandshakeResponseMessage(null);
-				return true;
-			}
-			else if (code == Constants.WS_AUTH_TOKEN_ERROR)
-			{
-				responseMessage = new HandshakeResponseMessage("WS_AUTH_TOKEN_ERROR");
-				return true;
-			}
-			else
-			{
-				responseMessage = new(string.Format("握手失败，错误代码：{0}", code));
-				return true;
-			}
-		}
-		catch (InvalidDataException ex)
-		{
-			responseMessage = new HandshakeResponseMessage(ex.Message);
-			return true;
-		}
 	}
 }

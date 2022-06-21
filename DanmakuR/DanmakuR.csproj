@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DanmakuR.Connection\DanmakuR.Connection.csproj" />
     <ProjectReference Include="..\DanmakuR.Protocol\DanmakuR.Protocol.csproj" />
   </ItemGroup>
 

@@ -63,7 +63,7 @@ namespace DanmakuR.Protocol.Model
 				throw new ArgumentException("未设置直播间号", nameof(Roomid));
 
 			if (protover > 3  && protover < 1)
-				protover = BLiveProtocol.SupportedProtocolVersion;
+				protover = BLiveMessageParser.SupportedProtocolVersion;
 	
 			if(From != null)
 				From = From > 0 ? From : 7;

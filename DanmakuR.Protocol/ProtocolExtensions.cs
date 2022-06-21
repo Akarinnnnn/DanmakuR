@@ -1,4 +1,5 @@
 ﻿using DanmakuR.Protocol.Model;
+using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System;
@@ -13,7 +14,7 @@ namespace DanmakuR.Protocol
 	{
 		public static IServiceCollection AddBLiveProtocol(this IServiceCollection services)
 		{
-			services.AddSingleton<BLiveProtocol>();
+			services.AddSingleton<IHubProtocol, BLiveProtocol>();
 			return services;
 		}
 

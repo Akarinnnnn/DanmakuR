@@ -4,15 +4,18 @@
 		<TargetFramework>net6.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<OutputType>Library</OutputType>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.AspNetCore.Http.Connections.Client" Version="6.0.5" />
+		<InternalsVisibleTo Include="DanmakuRTests" />
 		<Compile Include="$(SharedSourceRoot)*.cs" Link="Shared\%(Filename)%(Extension)" />
 
 	</ItemGroup>
 
 	<ItemGroup>
+	  <ProjectReference Include="..\DanmakuR.HandshakeProxy\DanmakuR.HandshakeProxy.csproj" />
 	  <ProjectReference Include="..\DanmakuR.Protocol\DanmakuR.Protocol.csproj" />
 	</ItemGroup>
 

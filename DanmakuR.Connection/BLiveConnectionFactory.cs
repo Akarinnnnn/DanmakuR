@@ -18,11 +18,11 @@ namespace DanmakuR.Connection
 		private readonly SocketConnectionFactoryOptions? socket_options;
 		private readonly HttpConnectionOptions? http_options;
 		private readonly Handshake2 handshake;
-		private readonly BDanmakuOptions protocol_options;
+		private readonly BLiveOptions protocol_options;
 		private readonly ILoggerFactory logger_factory;
 		public BLiveConnectionFactory(IOptions<SocketConnectionFactoryOptions>? socketOptions,
 			IOptions<HttpConnectionOptions>? httpOptions,
-			IOptions<BDanmakuOptions> bDanmakuOptions,
+			IOptions<BLiveOptions> bDanmakuOptions,
 			ILoggerFactory loggerFactory)
 		{
 			if (socketOptions == null && httpOptions == null)
@@ -40,7 +40,8 @@ namespace DanmakuR.Connection
 #pragma warning restore CS8602 // httpOptions绝不为null
 		}
 
-		public async ValueTask<ConnectionContext> ConnectAsync(EndPoint endpoint, CancellationToken cancellationToken = default)
+
+		public virtual async ValueTask<ConnectionContext> ConnectAsync(EndPoint endpoint, CancellationToken cancellationToken = default)
 		{
 			using HttpClient httpClient = new();
 			var negotiateResponse = await httpClient.GetFromJsonAsync<NegotiateResponse>(
@@ -48,14 +49,19 @@ namespace DanmakuR.Connection
 				NegotiateContext.Default.Options,
 				cancellationToken);
 			ConnectionContext context;
-			Debug.Assert(socket_options == null && http_options == null, "");
+			Debug.Assert(socket_options != null && http_options != null, "");
 
 			if (negotiateResponse != null && negotiateResponse.IsValid)
 			{
 				handshake.CdnToken = negotiateResponse.data.token;
 			}
 
-			if (socket_options != null)
+			if(protocol_options.TransportType == TransportTypes.Unspecified)
+				protocol_options.TransportType = socket_options != null ?
+					TransportTypes.RawSocket :
+					TransportTypes.InsecureWebsocket;
+
+			if (protocol_options.TransportType.HasRawSocket() && socket_options != null)
 			{
 				context = await ConnectSocket(negotiateResponse, cancellationToken);
 			}
@@ -65,7 +71,7 @@ namespace DanmakuR.Connection
 			}
 			else
 			{
-				throw new ArgumentNullException(null, "既没上http也没有socket，这东西怎么活到现在的？");
+				throw new ArgumentNullException($"{nameof(socket_options)}和{nameof(http_options)}", "这不科学");
 			}
 			return context;
 		}
@@ -117,7 +123,7 @@ namespace DanmakuR.Connection
 		{
 			return new()
 			{
-				Scheme = protocol_options.TransportType switch
+				Scheme = (protocol_options.TransportType & TransportTypes.Websocket) switch
 				{
 					TransportTypes.Unspecified or TransportTypes.Websocket => "ws",
 					TransportTypes.SecureWebsocket => "wss",
