@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace DanmakuR.Protocol.Model;
 
-internal enum FrameVersion : short
+public enum FrameVersion : short
 {
 	Json,
 	Int32BE,

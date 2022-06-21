@@ -2,7 +2,7 @@
 
 namespace DanmakuR.Protocol;
 
-public partial class BDanmakuProtocol
+public partial class BLiveProtocol
 {
 	private static partial class Log
 	{

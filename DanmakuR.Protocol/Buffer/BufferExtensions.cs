@@ -165,6 +165,7 @@ namespace DanmakuR.Protocol.Buffer
 			using BrotliDecoder decoder = new();
 			int estmatedBuffSize = unchecked((int)Math.Min(data.Length * 3, 16384));
 
+			// TODO 用MemoryBufferWriter重写
 			if (data.IsSingleSegment)
 			{
 				int totalConsumed = 0;
@@ -189,8 +190,11 @@ namespace DanmakuR.Protocol.Buffer
 						estmatedBuffSize += (data.FirstSpan.Length - totalConsumed) * 4;
 						goto rerun;
 					case OperationStatus.NeedMoreData:
+						data = data.Slice(totalConsumed);
+
+						throw new InvalidOperationException("需要更多数据");
 					case OperationStatus.InvalidData:
-						throw new InvalidDataException();
+						throw new InvalidDataException("brotli数据损坏");
 					default:
 #pragma warning disable CA2208 // nameof(status)
 						throw new ArgumentOutOfRangeException(nameof(status), SysSR.ArgumentOutOfRange_Enum);

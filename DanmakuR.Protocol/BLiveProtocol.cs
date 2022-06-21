@@ -16,7 +16,7 @@ using System.Text.Json;
 
 namespace DanmakuR.Protocol;
 
-public partial class BDanmakuProtocol : IHubProtocol
+public partial class BLiveProtocol : IHubProtocol
 {
 	// int32 framelength, int16 headerlength, int16 version, int32 opcode, int32 seqid
 	private static readonly byte[] ping_message =
@@ -29,10 +29,10 @@ public partial class BDanmakuProtocol : IHubProtocol
 		};
 	private static ReadOnlyMemory<byte> PingMessageMemory => ping_message;
 
-	private readonly BDanmakuOptions options;
+	private readonly BLiveOptions options;
 	private readonly ILogger logger;
 
-	private static readonly string full_name = typeof(BDanmakuProtocol).FullName!;
+	private static readonly string full_name = typeof(BLiveProtocol).FullName!;
 	public string Name => full_name;
 	internal const int SupportedProtocolVersion = Constants.WS_BODY_PROTOCOL_VERSION_BROTLI;
 	public int Version => SupportedProtocolVersion;
@@ -41,13 +41,14 @@ public partial class BDanmakuProtocol : IHubProtocol
 	private ReadOnlySequence<byte> decompressed_package = default;
 
 	/// <summary>
-	/// 请使用DI
+	/// 
 	/// </summary>
 	/// <param name="opt"></param>
-	public BDanmakuProtocol(IOptions<BDanmakuOptions> opt, ILoggerFactory loggerFactory)
+	/// <remarks>还是建议使用<see cref="Microsoft.Extensions.DependencyInjection"/>而不是直接<see langword="new"/>一个</remarks>
+	public BLiveProtocol(IOptions<BLiveOptions> opt, ILoggerFactory loggerFactory)
 	{
 		options = opt.Value;
-		logger = loggerFactory.CreateLogger<BDanmakuProtocol>();
+		logger = loggerFactory.CreateLogger<BLiveProtocol>();
 	}
 
 	/// <inheritdoc/>
@@ -183,13 +184,14 @@ public partial class BDanmakuProtocol : IHubProtocol
 	}
 
 	/// <summary>
-	/// 从<paramref name="input"/>切去一个数据包
+	/// 从<paramref name="input"/>切出一个数据包
 	/// </summary>
 	/// <param name="input">待解析的数据流</param>
 	/// <param name="payload">数据包内容</param>
 	/// <param name="header"></param>
 	/// <returns></returns>
-	private static bool TrySliceInput(in ReadOnlySequence<byte> input, out ReadOnlySequence<byte> payload, out FrameHeader header)
+	/// <remarks>单元测试需要internal</remarks>
+	internal static bool TrySliceInput(in ReadOnlySequence<byte> input, out ReadOnlySequence<byte> payload, out FrameHeader header)
 	{
 		if (!(input.TryReadHeader(out header) && input.Length > header.FrameLength))
 		{
@@ -198,7 +200,7 @@ public partial class BDanmakuProtocol : IHubProtocol
 			return false;
 		}
 
-		payload = input.Slice(header.HeaderLength, header.FrameLength);
+		payload = input.Slice(header.HeaderLength, header.FrameLength - header.HeaderLength);
 		return true;
 	}
 
@@ -208,7 +210,8 @@ public partial class BDanmakuProtocol : IHubProtocol
 	/// <param name="input">数据包，返回<see langword="true"/>时，修改为数据包内容</param>
 	/// <param name="opcode"></param>
 	/// <returns></returns>
-	private static bool TrySlicePayload(ref ReadOnlySequence<byte> input, out OpCode opcode)
+	/// <remarks>单元测试需要internal</remarks>
+	internal static bool TrySlicePayload(ref ReadOnlySequence<byte> input, out OpCode opcode)
 	{
 		if (!(input.TryReadHeader(out var header) && input.Length > header.FrameLength))
 		{
@@ -216,7 +219,7 @@ public partial class BDanmakuProtocol : IHubProtocol
 			return false;
 		}
 
-		input = input.Slice(header.HeaderLength, header.FrameLength);
+		input = input.Slice(header.HeaderLength, header.FrameLength - header.HeaderLength);
 		opcode = header.OpCode;
 		return true;
 	}
