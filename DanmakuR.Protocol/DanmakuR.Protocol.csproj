@@ -15,6 +15,7 @@
 
 	<ItemGroup>
 		<Compile Include="$(SharedSourceRoot)*.cs" Link="Shared\%(Filename)%(Extension)" />
+		<Compile Remove="D:\src\DanmakuR\AspNetCoreShared\BufferSegment.cs" />
 		<Compile Update="Resources\SR.Designer.cs">
 			<DependentUpon>SR.resx</DependentUpon>
 			<DesignTime>True</DesignTime>
