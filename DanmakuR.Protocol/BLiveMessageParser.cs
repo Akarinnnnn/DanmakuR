@@ -18,7 +18,7 @@ namespace DanmakuR.Protocol
 			0, 0, 0, 1
 		};
 
-		internal static readonly string full_name = typeof(BLiveProtocol).FullName!;
+		internal static readonly string ProtocolName = "blive";
 		internal static ReadOnlyMemory<byte> PingMessageMemory
 		{
 			[MethodImpl(MethodImplOptions.AggressiveInlining)]

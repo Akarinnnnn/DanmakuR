@@ -1,8 +1,8 @@
 ﻿using DanmakuR.Protocol.Buffer;
+using DanmakuR.Protocol.Buffer.Writers;
 using DanmakuR.Protocol.Model;
 using DanmakuR.Protocol.Resources;
 using Microsoft.AspNetCore.Connections;
-using Microsoft.AspNetCore.Internal;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.Extensions.Logging;
@@ -24,9 +24,9 @@ public partial class BLiveProtocol : IHubProtocol
 	private readonly BLiveOptions options;
 	private readonly ILogger logger;
 
-	public string Name => BLiveMessageParser.full_name;
+	public string Name => ProtocolName;
 
-	public int Version => BLiveMessageParser.SupportedProtocolVersion;
+	public int Version => SupportedProtocolVersion;
 	public TransferFormat TransferFormat => TransferFormat.Binary;
 	private MessagePackage message_package = default;
 	private ReadOnlySequence<byte> decompressed_package = default;
@@ -146,6 +146,7 @@ public partial class BLiveProtocol : IHubProtocol
 	/// <param name="msg"></param>
 	/// <returns></returns>
 	[SuppressMessage("Performance", "CA1822:将成员标记为 static", Justification = "还没写完")]
+	[SuppressMessage("Style", "IDE0060:删除未使用的参数", Justification = "同上")]
 	private SequencePosition ParseOne(Utf8JsonReader reader, IInvocationBinder binder, out HubMessage msg)
 	{
 		throw new NotImplementedException();

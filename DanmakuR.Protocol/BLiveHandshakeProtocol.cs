@@ -85,7 +85,7 @@ public class BLiveHandshakeProtocol : IHandshakeProtocol
 	private void WriteRequestMessageCore(HandshakeRequestMessage m, MemoryBufferWriter temp, ref FrameHeader header)
 	{
 
-		if (m.Protocol == full_name && m.Version == SupportedProtocolVersion)
+		if (m.Protocol == ProtocolName && m.Version == SupportedProtocolVersion)
 		{
 			hs2.Serialize(temp);
 			header.OpCode = OpCode.ConnectAndAuth;
@@ -96,7 +96,7 @@ public class BLiveHandshakeProtocol : IHandshakeProtocol
 			throw new HubException(string.Format(SR.Protocol_Mismatch,
 				m.Protocol,
 				m.Version.ToString(),
-				full_name,
+				ProtocolName,
 				SupportedProtocolVersion.ToString()
 			));
 		}
