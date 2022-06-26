@@ -1,6 +1,8 @@
 ﻿using DanmakuR.Protocol.Buffer;
 using DanmakuR.Protocol.Model;
+using DanmakuR.Protocol.Resources;
 using Microsoft.AspNetCore.Internal;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.Extensions.Options;
 using System;

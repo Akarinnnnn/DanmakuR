@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -200,7 +201,7 @@ internal sealed class MemoryBufferWriter : Stream, IBufferWriter<byte>
 #if NETCOREAPP
 				await destination.WriteAsync(segment.Buffer.AsMemory(0, segment.Length), cancellationToken).ConfigureAwait(false);
 #else
-                await destination.WriteAsync(segment.Buffer, 0, segment.Length, cancellationToken).ConfigureAwait(false);
+				await destination.WriteAsync(segment.Buffer, 0, segment.Length, cancellationToken).ConfigureAwait(false);
 #endif
 			}
 		}
@@ -210,7 +211,7 @@ internal sealed class MemoryBufferWriter : Stream, IBufferWriter<byte>
 #if NETCOREAPP
 			await destination.WriteAsync(_currentSegment.AsMemory(0, _position), cancellationToken).ConfigureAwait(false);
 #else
-            await destination.WriteAsync(_currentSegment, 0, _position, cancellationToken).ConfigureAwait(false);
+			await destination.WriteAsync(_currentSegment, 0, _position, cancellationToken).ConfigureAwait(false);
 #endif
 		}
 	}
@@ -440,11 +441,14 @@ internal sealed class MemoryBufferWriter : Stream, IBufferWriter<byte>
 			}
 		}
 
-		public readonly List<CompletedBuffer> Segments;
+		private readonly byte[]? singleSegment;
+		private readonly List<CompletedBuffer>? Segments;
+
 		public readonly ReadOnlySequence<byte> Sequence;
 		public int ByteLength { get; }
-		public WrittenSequence(List<CompletedBuffer> segments, int bytesWritten)
+		internal WrittenSequence(List<CompletedBuffer> segments, int bytesWritten)
 		{
+			singleSegment = null;
 			Segments = segments;
 			ByteLength = bytesWritten;
 			CompletedBuffer current;
@@ -473,13 +477,28 @@ internal sealed class MemoryBufferWriter : Stream, IBufferWriter<byte>
 			}
 		}
 
+		internal WrittenSequence(byte[] buffer, int bytesWritten)
+		{
+			Segments = null;
+			singleSegment = buffer;
+			ByteLength = bytesWritten;
+			Sequence = new(buffer, 0, bytesWritten);
+		}
 		public void Dispose()
 		{
-			for (int i = 0; i < Segments.Count; i++)
+			if (Segments == null)
 			{
-				Segments[i].Return();
+				Debug.Assert(singleSegment != null);
+				ArrayPool<byte>.Shared.Return(singleSegment);
+			}	
+			else
+			{
+				for (int i = 0; i < Segments.Count; i++)
+				{
+					Segments[i].Return();
+				}
+				Segments.Clear(); 
 			}
-			Segments.Clear();
 		}
 	}
 

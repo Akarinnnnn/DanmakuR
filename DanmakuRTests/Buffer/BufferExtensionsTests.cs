@@ -1,4 +1,6 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿extern alias protocol;
+
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Buffers;
-using DanmakuR.Protocol.Buffer;
+using protocol::DanmakuR.Protocol.Buffer;
 
 namespace DanmakuR.Buffer.Tests
 {
