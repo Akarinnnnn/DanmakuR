@@ -1,5 +1,7 @@
-﻿using DanmakuR.Protocol.Buffer;
+﻿extern alias protocol;
+
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using protocol::DanmakuR.Protocol.Buffer;
 using System;
 using System.Collections.Generic;
 using System.Linq;

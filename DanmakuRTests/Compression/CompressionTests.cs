@@ -88,7 +88,7 @@ namespace DanmakuRTests.Compression
 		[DataRow("data/Handshake2.cs")]
 		[DataRow("data/SimpleSegment.cs")]
 		[TestMethod]
-		public void TestMultipleSegment(string filename)
+		public void TestBrMultipleSegment(string filename)
 		{
 			byte[] src = File.ReadAllBytes(filename);
 			byte[] br = File.ReadAllBytes(filename + ".br");
