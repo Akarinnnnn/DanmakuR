@@ -1,5 +1,6 @@
 ﻿using DanmakuR.Protocol.Buffer;
 using DanmakuR.Protocol.Model;
+using Microsoft.AspNetCore.SignalR.Protocol;
 using System.Buffers;
 using System.Runtime.CompilerServices;
 
@@ -73,5 +74,20 @@ namespace DanmakuR.Protocol
 			opcode = header.OpCode;
 			return true;
 		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal static bool InsufficientDataToParse(out HubMessage? message)
+		{
+			message = null;
+			return false;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal static bool InvalidMessage(out HubMessage? message)
+		{
+			message = null;
+			return true;
+		}
+
 	}
 }

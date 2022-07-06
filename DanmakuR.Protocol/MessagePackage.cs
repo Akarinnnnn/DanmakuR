@@ -13,7 +13,8 @@ namespace DanmakuR.Protocol
 {
 	internal struct MessagePackage
 	{
-		private readonly SequencePosition endPosition;
+		private SequencePosition end;
+		private ReadOnlySequence<byte> sequence;
 		internal readonly OpCode opcode;
 
 		/// <summary>
@@ -21,22 +22,27 @@ namespace DanmakuR.Protocol
 		/// </summary>
 		/// <param name="endPosition">消息末尾（<see cref="FrameHeader.FrameLength"/>）</param>
 		/// <param name="opcode"></param>
-		public MessagePackage(SequencePosition endPosition, OpCode opcode)
+		public MessagePackage(ReadOnlySequence<byte> sequence, OpCode opcode)
 		{
-			this.endPosition = endPosition;
+			this.sequence = sequence;
+			end = this.sequence.End;
 			this.opcode = opcode;
 		}
 
-		public bool IsCompleted { get; private set; } = false;
-		public SequencePosition End => endPosition;
+		public bool IsCompleted 
+		{ 
+			[method:MethodImpl(MethodImplOptions.AggressiveInlining)] get;
+			private set; 
+		} = false;
+		public SequencePosition End => sequence.End;
 
 		[MethodImpl(MethodImplOptions.NoInlining)]
-		private void CheckDelimiter(ref SequencePosition pos, in ReadOnlySequence<byte> data)
+		private void CheckDelimiter(SequencePosition pos)
 		{
-			if (data.IsSingleSegment)
+			if (sequence.IsSingleSegment)
 			{
 				int index = pos.GetInteger();
-				byte nextByte = data.FirstSpan[index + 1];
+				byte nextByte = sequence.FirstSpan[index + 1];
 				if (nextByte == '{')
 					return;
 
@@ -44,24 +50,26 @@ namespace DanmakuR.Protocol
 				if (nextByte < 0x1e)
 				{
 					// 要不加个字段统计一下？
-					pos = data.GetPosition(2, pos);
+					sequence = sequence.Slice(index + 1);
 					return;
 				}
 				else
 				{
-					// 什么玩意？
-					Complete(ref pos);
+					// 下一个数据包
+					IsCompleted = true;
 					return;
 				}
 			}
 
-			var nextPos = pos;
-			if (data.TryGet(ref nextPos, out var current))
+			var nextPos = sequence.GetPosition(1, pos);
+			if (sequence.TryGet(ref nextPos, out var current))
 			{
-				if (current.IsEmpty && SkipEmptySegment(ref nextPos, in data, out current))
-					// 剩下全空，噶了
-					Complete(ref pos);
+				if (current.IsEmpty && SkipEmptySegment(ref nextPos, in sequence, out current))
+					// 剩下全空
+					IsCompleted = true;
 
+				if (current.Span[0] < 0x1e)
+					sequence.Slice(sequence.GetPosition(1, nextPos));
 			}
 		}
 
@@ -80,36 +88,29 @@ namespace DanmakuR.Protocol
 			return memory.IsEmpty;
 		}
 
-		private void Complete(ref SequencePosition pos)
-		{
-			IsCompleted = true;
-			pos = endPosition;
-		}
-
 		/// <summary>
 		/// 把position改到下一个json开始，或者数据包结尾
 		/// </summary>
 		/// <param name="position"><see cref="Utf8JsonReader.Position"/></param>
 		/// <param name="data"></param>
 		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-		public void FitNextRecord(ref SequencePosition position, in ReadOnlySequence<byte> data)
+		public void FitNextRecord(SequencePosition position)
 		{
-			if (position.Equals(endPosition))
+			if (position.Equals(sequence.End))
 			{
 				IsCompleted = true;
 				return;
 			}
 
-			CheckDelimiter(ref position, in data);
+			CheckDelimiter(position);
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-		public Utf8JsonReader ReadOne(in ReadOnlySequence<byte> data)
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public Utf8JsonReader ReadOne()
 		{
-			if (data.IsEmpty)
-				return new();
-
-			return new(data);
+			Debug.Assert(!sequence.IsEmpty);
+			
+			return new(sequence);
 		}
 	}
 }

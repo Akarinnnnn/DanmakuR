@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
@@ -19,7 +20,7 @@ using static DanmakuR.Protocol.BLiveMessageParser;
 
 namespace DanmakuR.Protocol;
 
-public partial class BLiveProtocol : IHubProtocol
+public partial class BLiveProtocol : IHubProtocol, IDisposable
 {
 	private readonly BLiveOptions options;
 	private readonly ILogger logger;
@@ -29,7 +30,11 @@ public partial class BLiveProtocol : IHubProtocol
 	public int Version => SupportedProtocolVersion;
 	public TransferFormat TransferFormat => TransferFormat.Binary;
 	private MessagePackage message_package = default;
-	private ReadOnlySequence<byte> decompressed_package = default;
+	private bool disposedValue;
+
+	private ReadOnlySequence<byte> decompressed_messages;
+	private MemoryBufferWriter.WrittenSequence decompressed;
+	private readonly MemoryBufferWriter decompress_writer = new(8192);
 
 	/// <summary>
 	/// 
@@ -46,7 +51,7 @@ public partial class BLiveProtocol : IHubProtocol
 	public ReadOnlyMemory<byte> GetMessageBytes(HubMessage message)
 	{
 		if (ReferenceEquals(message, PingMessage.Instance) || message is PingMessage)
-			return BLiveMessageParser.PingMessageMemory;
+			return PingMessageMemory;
 
 		return HubProtocolExtensions.GetMessageBytes(this, message);
 	}
@@ -62,81 +67,116 @@ public partial class BLiveProtocol : IHubProtocol
 	{
 		if (!message_package.IsCompleted)
 		{
-			try
-			{
-				Log.MultipleMessage(logger);
-				var pos = ParseOne(message_package.ReadOne(in input), binder, out message);
-				message_package.FitNextRecord(ref pos, in input);
-				return true;
-			}
-			catch (JsonException)
-			{
-				Log.InvalidJson(logger);
-				message = null;
-				return false;
-			}
+			return HandleAggreatedMessages(binder, out message);
 		}
 		else
 		{
-			input = input.Slice(message_package.End);
+			if (decompressed_messages.IsEmpty)
+			{
+				decompressed.Dispose();
+				decompressed = default;
+			}
 		}
 
-		if (BLiveMessageParser.TrySliceInput(in input, out var payload, out var header))
+		
+	}
+
+	private bool HandleAggreatedMessages(IInvocationBinder binder, out HubMessage? message)
+	{
+		try
+		{
+			Log.MultipleMessage(logger);
+			var pos = ParseInvocation(message_package.ReadOne(), binder, out message);
+			message_package.FitNextRecord(pos);
+			return true;
+		}
+		catch (JsonException)
+		{
+			Log.InvalidJson(logger);
+			message = null;
+			return false;
+		}
+	}
+
+	private bool ParseMessageCore(IInvocationBinder binder, out HubMessage? message, ref ReadOnlySequence<byte> input)
+	{
+		if (TrySliceInput(in input, out var payload, out var header))
 		{
 			if (header.Version == FrameVersion.Int32BE || header.OpCode == OpCode.Pong)
 			{
-				int value;
-				var span = payload.FirstSpan;
-				if (span.Length >= 4)
+				if (payload.Length < 4)
 				{
-					value = BinaryPrimitives.ReadInt32BigEndian(payload.FirstSpan);
-				}
-				else
-				{
-					var r = new SequenceReader<byte>(payload);
-					if (!r.TryReadBigEndian(out value))
-					{
-						message = null;
-						return false;
-					}
+					return InsufficientDataToParse(out message);
 				}
 
-				try
-				{
-					AssertMethodParamTypes(binder, nameof(WellKnownMethods.OnPopularity), WellKnownMethods.OnPopularity.ParamTypes);
-					message = new InvocationMessage(nameof(WellKnownMethods.OnPopularity), new object[] { value });
-					return true;
-				}
-				catch (ArgumentException ex)
-				{
-					message = new InvocationBindingFailureMessage(null, WellKnownMethods.OnPopularity.Name, ExceptionDispatchInfo.Capture(ex));
-					return true;
-				}
+				int value = ParsePongValue(in payload);
+				message = MakePongMessage(binder, value);
+				input = input.Slice(header.FrameLength);
+				return true;
 			}
 
 			try
 			{
 				if (header.Version != FrameVersion.Json)
 				{
-					UnPackage(ref header, payload);
+					ProcessDecompressedData(ref header, payload);
+					input = input.Slice(header.FrameLength);
+					if (!TrySliceInput(decompressed_messages, out payload, out header))
+					{
+						return InvalidMessage(out message);
+					}
 				}
+					// todo
+				var pos = ParseInvocation(message_package.ReadOne(), binder, out message);
+
+				if (pos.Equals(payload.End))
+					return true;
+				else
+					message_package.FitNextRecord(pos);
 			}
 			catch (JsonException)
 			{
 				Log.InvalidJson(logger);
-				goto fail;
+				return InvalidMessage(out message);
 			}
 			catch (InvalidDataException)
 			{
 				Log.InvalidData(logger);
-				goto fail;
+				return InvalidMessage(out message);
 			}
 		}
-	fail:
-		message = null;
-		return false;
 	}
 
+	private static int ParsePongValue(in ReadOnlySequence<byte> payload)
+	{
+		ReadOnlySpan<byte> span = payload.FirstSpan;
+		int value;
+		if (span.Length >= 4)
+		{
+			value = BinaryPrimitives.ReadInt32BigEndian(span);
+		}
+		else
+		{
+			var reader = new SequenceReader<byte>(payload);
+			Debug.Assert(reader.TryReadBigEndian(out value));
+		}
+
+		return value;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private static HubMessage MakePongMessage(IInvocationBinder binder, int value)
+	{
+		try
+		{
+			AssertMethodParamTypes(binder, nameof(WellKnownMethods.OnPopularity), WellKnownMethods.OnPopularity.ParamTypes);
+			return new InvocationMessage(nameof(WellKnownMethods.OnPopularity), new object[] { value });
+		}
+		catch (ArgumentException ex)
+		{
+			return new InvocationBindingFailureMessage(null, WellKnownMethods.OnPopularity.Name, ExceptionDispatchInfo.Capture(ex));
+		}
+	}
 
 	/// <summary>
 	/// 解析核心
@@ -147,7 +187,7 @@ public partial class BLiveProtocol : IHubProtocol
 	/// <returns></returns>
 	[SuppressMessage("Performance", "CA1822:将成员标记为 static", Justification = "还没写完")]
 	[SuppressMessage("Style", "IDE0060:删除未使用的参数", Justification = "同上")]
-	private SequencePosition ParseOne(Utf8JsonReader reader, IInvocationBinder binder, out HubMessage msg)
+	private SequencePosition ParseInvocation(Utf8JsonReader reader, IInvocationBinder binder, out HubMessage msg)
 	{
 		throw new NotImplementedException();
 
@@ -158,23 +198,27 @@ public partial class BLiveProtocol : IHubProtocol
 	}
 
 	// TODO: 什么玩意？
-	private void UnPackage(ref FrameHeader header, ReadOnlySequence<byte> compressedPackage)
+	private void ProcessDecompressedData(ref FrameHeader header, in ReadOnlySequence<byte> compressedPackage)
 	{
 		switch (header.Version)
 		{
 			case FrameVersion.Deflate:
-				compressedPackage.DecompressDeflate(out decompressed_package);
+				compressedPackage.DecompressDeflate(decompress_writer);
 				break;
 			case FrameVersion.Brotli:
-				compressedPackage.DecompressBrotli(out decompressed_package);
+				compressedPackage.DecompressBrotli(decompress_writer);
 				break;
 			default:
 				throw new InvalidDataException(string.Format(SR.Unreconized_Compression, header._version));
 		}
-		if (!decompressed_package.TryReadHeader(out header) || !TrySlicePayload(ref decompressed_package, out var opcode))
+
+		decompressed = decompress_writer.DeatchToSequence();
+		decompressed_messages = decompressed.GetSequence();
+
+		if (!TrySliceInput(in decompressed_messages, out var payload, out header))
 			throw new InvalidDataException(SR.Invalid_MsgBag);
 		else
-			message_package = new(decompressed_package.End, opcode);
+			message_package = new(payload.End, header.OpCode);
 	}
 
 	private static void AssertMethodParamTypes(IInvocationBinder binder, string methodName, Type[] types)
@@ -232,5 +276,26 @@ public partial class BLiveProtocol : IHubProtocol
 		}
 
 		header.FrameLength = checked((int)(header.HeaderLength + temp.Length));
+	}
+
+	protected virtual void Dispose(bool disposing)
+	{
+		if (!disposedValue)
+		{
+			if (disposing)
+			{
+				decompressed.Dispose();
+				decompress_writer.Dispose();
+			}
+
+			disposedValue = true;
+		}
+	}
+
+	public void Dispose()
+	{
+		// 不要更改此代码。请将清理代码放入“Dispose(bool disposing)”方法中
+		Dispose(disposing: true);
+		GC.SuppressFinalize(this);
 	}
 }

@@ -443,38 +443,12 @@ internal sealed class MemoryBufferWriter : Stream, IBufferWriter<byte>
 
 		private readonly byte[]? singleSegment;
 		private readonly List<CompletedBuffer>? Segments;
-
-		public readonly ReadOnlySequence<byte> Sequence;
 		public int ByteLength { get; }
 		internal WrittenSequence(List<CompletedBuffer> segments, int bytesWritten)
 		{
 			singleSegment = null;
 			Segments = segments;
 			ByteLength = bytesWritten;
-			CompletedBuffer current;
-
-			if (segments.Count == 1)
-			{
-				current = segments[0];
-				Sequence = new(current.Buffer, 0, current.Length);
-			}
-			else if (segments.Count == 0)
-			{
-				Sequence = default;
-			}
-			else
-			{
-				Segment first = new(segments[0].Buffer, segments[0].Length);
-				Segment? segment = null;
-				for (int i = 1; i < segments.Count; i++)
-				{
-					current = segments[i];
-					segment = segment?.CreateNext(current.Buffer, current.Length)
-						?? first.CreateNext(current.Buffer, current.Length);
-				}
-
-				Sequence = new(first, first.End, segment!, segment!.End);
-			}
 		}
 
 		internal WrittenSequence(byte[] buffer, int bytesWritten)
@@ -482,8 +456,8 @@ internal sealed class MemoryBufferWriter : Stream, IBufferWriter<byte>
 			Segments = null;
 			singleSegment = buffer;
 			ByteLength = bytesWritten;
-			Sequence = new(buffer, 0, bytesWritten);
 		}
+
 		public void Dispose()
 		{
 			if (Segments == null)
@@ -498,6 +472,37 @@ internal sealed class MemoryBufferWriter : Stream, IBufferWriter<byte>
 					Segments[i].Return();
 				}
 				Segments.Clear(); 
+			}
+		}
+
+		public ReadOnlySequence<byte> GetSequence()
+		{
+			if (singleSegment != null)
+				return new(singleSegment, 0, ByteLength);
+
+			Debug.Assert(Segments != null);
+			CompletedBuffer current;
+			if (Segments.Count == 1)
+			{
+				current = Segments[0];
+				return new(current.Buffer, 0, current.Length);
+			}
+			else if (Segments.Count == 0)
+			{
+				return default;
+			}
+			else
+			{
+				Segment first = new(Segments[0].Buffer, Segments[0].Length);
+				Segment? segment = null;
+				for (int i = 1; i < Segments.Count; i++)
+				{
+					current = Segments[i];
+					segment = segment?.CreateNext(current.Buffer, current.Length)
+						?? first.CreateNext(current.Buffer, current.Length);
+				}
+
+				return new(first, first.End, segment!, segment!.End);
 			}
 		}
 	}
