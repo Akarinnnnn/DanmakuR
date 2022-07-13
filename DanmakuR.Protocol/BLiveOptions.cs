@@ -14,6 +14,11 @@ namespace DanmakuR.Protocol
 		public JsonSerializerOptions SerializerOptions { get; set; }
 		public Handshake2 HandshakeSettings { get; set; }
 #pragma warning restore CS8618 // 正常来说，通过DI获得的实例不会为空。直接创建的实例除外
-		public TransportTypes TransportType { get; set; }
+		public TransportTypes TransportType { get; set; } = TransportTypes.RawSocket;
+		public JsonReaderOptions ReaderOptions { get; set; } = new()
+		{
+			MaxDepth = 128,
+			AllowTrailingCommas = false
+		};
 	}
 }

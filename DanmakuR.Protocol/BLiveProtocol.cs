@@ -36,6 +36,15 @@ public partial class BLiveProtocol : IHubProtocol, IDisposable
 	private MemoryBufferWriter.WrittenSequence decompressed;
 	private readonly MemoryBufferWriter decompress_writer = new(8192);
 
+#if DEBUG
+	private readonly int creatorThreadId = Environment.CurrentManagedThreadId;
+	private void CheckThread()
+	{
+		Debug.Assert(Environment.CurrentManagedThreadId == creatorThreadId,
+			$"{nameof(BLiveProtocol)}目前只适合单线程运行，整体还未考虑多线程竞争条件");
+	}
+#endif
+
 	/// <summary>
 	/// 
 	/// </summary>
@@ -65,20 +74,51 @@ public partial class BLiveProtocol : IHubProtocol, IDisposable
 	/// <inheritdoc/>
 	public bool TryParseMessage(ref ReadOnlySequence<byte> input, IInvocationBinder binder, [NotNullWhen(true)] out HubMessage? message)
 	{
-		if (!message_package.IsCompleted)
+#if DEBUG
+		CheckThread();
+#endif
+		if (message_package.IsCompleted)
 		{
-			return HandleAggreatedMessages(binder, out message);
+			if (decompressed.ByteLength == 0)
+			{
+				// 没有积压的消息，从input解析
+				return ParseMessageCore(binder, out message, ref input);
+			}
+
+			if (!decompressed_messages.IsEmpty)
+			{
+				if (!TrySliceInput(decompressed_messages, out var nextPayload, out _))
+				{
+					CleanupDecompressedMessages();
+					return InvalidMessage(out message);
+				}
+
+				return HandleInvocation(binder, out message, nextPayload);
+			}
+			else
+			{
+				CleanupDecompressedMessages();
+				return ParseMessageCore(binder, out message, ref input);
+			}
 		}
 		else
 		{
-			if (decompressed_messages.IsEmpty)
-			{
-				decompressed.Dispose();
-				decompressed = default;
-			}
+			return HandleAggreatedMessages(binder, out message);
 		}
 
-		
+
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+	private void CleanupDecompressedMessages()
+	{
+		decompressed.Dispose();
+		decompressed = default;
+
+		if (decompressed_messages.IsEmpty)
+			return;
+		else
+			decompressed_messages = default;
 	}
 
 	private bool HandleAggreatedMessages(IInvocationBinder binder, out HubMessage? message)
@@ -98,12 +138,19 @@ public partial class BLiveProtocol : IHubProtocol, IDisposable
 		}
 	}
 
+	/// <devdoc>
+	/// <param name="binder"></param>
+	/// <param name="message"></param>
+	/// <param name="input">可能是压缩的数据包</param>
+	/// <returns></returns>
+	/// </devdoc>
 	private bool ParseMessageCore(IInvocationBinder binder, out HubMessage? message, ref ReadOnlySequence<byte> input)
 	{
 		if (TrySliceInput(in input, out var payload, out var header))
 		{
 			if (header.Version == FrameVersion.Int32BE || header.OpCode == OpCode.Pong)
 			{
+				// 收到int32气人值
 				if (payload.Length < 4)
 				{
 					return InsufficientDataToParse(out message);
@@ -117,22 +164,20 @@ public partial class BLiveProtocol : IHubProtocol, IDisposable
 
 			try
 			{
+				// 收到Message数据包，转化为InvocationMessage
+				Debug.Assert(header.OpCode == OpCode.Message);
 				if (header.Version != FrameVersion.Json)
 				{
-					ProcessDecompressedData(ref header, payload);
+					DecompressData(ref header, payload);
 					input = input.Slice(header.FrameLength);
 					if (!TrySliceInput(decompressed_messages, out payload, out header))
 					{
+						CleanupDecompressedMessages();
 						return InvalidMessage(out message);
 					}
 				}
-					// todo
-				var pos = ParseInvocation(message_package.ReadOne(), binder, out message);
 
-				if (pos.Equals(payload.End))
-					return true;
-				else
-					message_package.FitNextRecord(pos);
+				return HandleInvocation(binder, out message, payload);
 			}
 			catch (JsonException)
 			{
@@ -145,8 +190,33 @@ public partial class BLiveProtocol : IHubProtocol, IDisposable
 				return InvalidMessage(out message);
 			}
 		}
+		else
+		{
+			return InsufficientDataToParse(out message);
+		}
 	}
 
+	private bool HandleInvocation(IInvocationBinder binder, out HubMessage? message, in ReadOnlySequence<byte> payload)
+	{
+		var pos = ParseInvocation(new(payload), binder, out message);
+
+		if (pos.Equals(payload.End))
+		{
+			if (!decompressed_messages.IsEmpty)
+			{
+				decompressed_messages = decompressed_messages.Slice(pos);
+			} 
+		}
+		else
+		{
+			message_package = new(payload, OpCode.Message);
+			message_package.FitNextRecord(pos);
+		}
+
+		return true;
+	}
+
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 	private static int ParsePongValue(in ReadOnlySequence<byte> payload)
 	{
 		ReadOnlySpan<byte> span = payload.FirstSpan;
@@ -178,13 +248,12 @@ public partial class BLiveProtocol : IHubProtocol, IDisposable
 		}
 	}
 
+	/// <devdoc>
 	/// <summary>
-	/// 解析核心
+	/// 解析<see cref="OpCode.Message"/>数据包中的Json信息
 	/// </summary>
-	/// <param name="reader"></param>
-	/// <param name="binder"></param>
-	/// <param name="msg"></param>
-	/// <returns></returns>
+	/// <returns>单条json的最后一个标记位置</returns>
+	/// </devdoc>
 	[SuppressMessage("Performance", "CA1822:将成员标记为 static", Justification = "还没写完")]
 	[SuppressMessage("Style", "IDE0060:删除未使用的参数", Justification = "同上")]
 	private SequencePosition ParseInvocation(Utf8JsonReader reader, IInvocationBinder binder, out HubMessage msg)
@@ -198,7 +267,7 @@ public partial class BLiveProtocol : IHubProtocol, IDisposable
 	}
 
 	// TODO: 什么玩意？
-	private void ProcessDecompressedData(ref FrameHeader header, in ReadOnlySequence<byte> compressedPackage)
+	private void DecompressData(ref FrameHeader header, in ReadOnlySequence<byte> compressedPackage)
 	{
 		switch (header.Version)
 		{
@@ -218,7 +287,7 @@ public partial class BLiveProtocol : IHubProtocol, IDisposable
 		if (!TrySliceInput(in decompressed_messages, out var payload, out header))
 			throw new InvalidDataException(SR.Invalid_MsgBag);
 		else
-			message_package = new(payload.End, header.OpCode);
+			message_package = new(payload, header.OpCode);
 	}
 
 	private static void AssertMethodParamTypes(IInvocationBinder binder, string methodName, Type[] types)
