@@ -18,5 +18,12 @@
 			nameof(OnPopularity),
 			new[] { typeof(int) }
 		);
+
+		/// <summary>
+		/// 此API用于内部实现，不应直接使用
+		/// </summary>
+		public static readonly MethodDefination ProtocolOnBrotliMessage = new("blive_ProtocolOnBrotliMessage",
+			new[] { typeof(ParsingAggreatedMessageState) }
+		);
 	}
 }
