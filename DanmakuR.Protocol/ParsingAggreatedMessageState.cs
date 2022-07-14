@@ -1,4 +1,5 @@
 ﻿using DanmakuR.Protocol.Buffer.Writers;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using System.Buffers;
 using System.Threading.Channels;
@@ -9,7 +10,8 @@ namespace DanmakuR.Protocol
 	{
 		private MemoryBufferWriter.WrittenSequence memory_holder;
 		private bool is_disposed;
-		public bool IsBrotli { get; }
+		public bool IsSequentialFrames { get; }
+		public IInvocationBinder Binder { get; }
 		public BLiveProtocol HubProtocol { get; }
 
 		public ReadOnlySequence<byte> Buffer { get => memory_holder.GetSequence(); }
@@ -19,12 +21,14 @@ namespace DanmakuR.Protocol
 		internal ParsingAggreatedMessageState(BLiveProtocol hubProtocol, 
 			ChannelWriter<HubMessage> writer, 
 			MemoryBufferWriter.WrittenSequence memoryHolder, 
-			bool isBrotli)
+			bool isSequentialFrames,
+			IInvocationBinder binder)
 		{
 			HubProtocol = hubProtocol;
 			Writer = writer;
 			memory_holder = memoryHolder;
-			IsBrotli = isBrotli;
+			IsSequentialFrames = isSequentialFrames;
+			Binder = binder;
 		}
 
 		private void Dispose(bool disposing)

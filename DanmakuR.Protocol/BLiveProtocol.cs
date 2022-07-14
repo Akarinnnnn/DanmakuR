@@ -74,12 +74,6 @@ public partial class BLiveProtocol : IHubProtocol
 		return ParseMessageCore(binder, out message, ref input);
 	}
 
-
-	public static async Task HandleAggreatedMessages(ParsingAggreatedMessageState state)
-	{
-		// Todo 接着写完
-	}
-
 	/// <devdoc>
 	/// <param name="binder"></param>
 	/// <param name="message"></param>
@@ -111,14 +105,15 @@ public partial class BLiveProtocol : IHubProtocol
 				if (header.Version != FrameVersion.Json)
 				{
 					bool isBr = header.Version == FrameVersion.Brotli;
-					var holder = DecompressData(ref header, payload);
+					var holder = DecompressData(in header, payload);
 					input = input.Slice(header.FrameLength);
 
 					return BindAggreatedMessage(binder, out message, new(
 						this,
 						messagebag_channel,
 						holder, 
-						isBr
+						isBr,
+						binder
 					));
 				}
 
@@ -145,12 +140,12 @@ public partial class BLiveProtocol : IHubProtocol
 	{
 		try
 		{
-			AssertMethodParamTypes(binder, WellKnownMethods.ProtocolOnBrotliMessage.Name, WellKnownMethods.ProtocolOnBrotliMessage.ParamTypes);
-			message = new InvocationMessage(WellKnownMethods.ProtocolOnBrotliMessage.Name, new object[] { state });
+			AssertMethodParamTypes(binder, WellKnownMethods.ProtocolOnAggreatedMessage.Name, WellKnownMethods.ProtocolOnAggreatedMessage.ParamTypes);
+			message = new InvocationMessage(WellKnownMethods.ProtocolOnAggreatedMessage.Name, new object[] { state });
 		}
 		catch (ArgumentException ex)
 		{
-			message = new InvocationBindingFailureMessage(null, WellKnownMethods.ProtocolOnBrotliMessage.Name, ExceptionDispatchInfo.Capture(ex));
+			message = new InvocationBindingFailureMessage(null, WellKnownMethods.ProtocolOnAggreatedMessage.Name, ExceptionDispatchInfo.Capture(ex));
 		}
 
 		return true;
@@ -213,7 +208,7 @@ public partial class BLiveProtocol : IHubProtocol
 #pragma warning restore CS0162 // 检测到无法访问的代码
 	}
 
-	private static MemoryBufferWriter.WrittenSequence DecompressData(ref FrameHeader header, in ReadOnlySequence<byte> compressedPackage)
+	private static MemoryBufferWriter.WrittenSequence DecompressData(in FrameHeader header, in ReadOnlySequence<byte> compressedPackage)
 	{
 		var writer = MemoryBufferWriter.Get();
 		try
@@ -283,8 +278,6 @@ public partial class BLiveProtocol : IHubProtocol
 	{
 		switch (message)
 		{
-			// 这不科学
-			case HandshakeResponseMessage:
 			case CloseMessage:
 				break;
 
