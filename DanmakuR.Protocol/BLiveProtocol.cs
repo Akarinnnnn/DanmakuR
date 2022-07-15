@@ -3,6 +3,7 @@ using DanmakuR.Protocol.Buffer.Writers;
 using DanmakuR.Protocol.Model;
 using DanmakuR.Protocol.Resources;
 using Microsoft.AspNetCore.Connections;
+using Microsoft.AspNetCore.Internal;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.Extensions.Logging;
@@ -17,7 +18,7 @@ using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using System.Threading.Channels;
 using static DanmakuR.Protocol.BLiveMessageParser;
-
+using MemoryBufferWriter = DanmakuR.Protocol.Buffer.Writers.MemoryBufferWriter;
 
 namespace DanmakuR.Protocol;
 
@@ -37,7 +38,7 @@ public partial class BLiveProtocol : IHubProtocol
 		SingleWriter = false,
 		AllowSynchronousContinuations = true
 	};
-	private readonly Channel<HubMessage> messagebag_channel = Channel.CreateUnbounded<HubMessage>(channel_options);
+	private readonly Channel<HubMessage> hubmessage_channel = Channel.CreateUnbounded<HubMessage>(channel_options);
 
 	/// <summary>
 	/// 
@@ -68,7 +69,7 @@ public partial class BLiveProtocol : IHubProtocol
 	/// <inheritdoc/>
 	public bool TryParseMessage(ref ReadOnlySequence<byte> input, IInvocationBinder binder, [NotNullWhen(true)] out HubMessage? message)
 	{
-		if (messagebag_channel.Reader.TryRead(out message))
+		if (hubmessage_channel.Reader.TryRead(out message))
 			return true;
 
 		return ParseMessageCore(binder, out message, ref input);
@@ -110,7 +111,7 @@ public partial class BLiveProtocol : IHubProtocol
 
 					return BindAggreatedMessage(binder, out message, new(
 						this,
-						messagebag_channel,
+						hubmessage_channel,
 						holder, 
 						isBr,
 						binder
@@ -143,7 +144,7 @@ public partial class BLiveProtocol : IHubProtocol
 			AssertMethodParamTypes(binder, WellKnownMethods.ProtocolOnAggreatedMessage.Name, WellKnownMethods.ProtocolOnAggreatedMessage.ParamTypes);
 			message = new InvocationMessage(WellKnownMethods.ProtocolOnAggreatedMessage.Name, new object[] { state });
 		}
-		catch (ArgumentException ex)
+		catch (BindingFailureException ex)
 		{
 			message = new InvocationBindingFailureMessage(null, WellKnownMethods.ProtocolOnAggreatedMessage.Name, ExceptionDispatchInfo.Capture(ex));
 		}
@@ -151,11 +152,19 @@ public partial class BLiveProtocol : IHubProtocol
 		return true;
 	}
 
-	private bool HandleInvocation(IInvocationBinder binder, out HubMessage? message, in ReadOnlySequence<byte> payload)
+	internal bool HandleInvocation(IInvocationBinder binder, out HubMessage? message, in ReadOnlySequence<byte> payload)
 	{
-		var pos = ParseInvocation(new(payload), binder, out message);
+		try
+		{
+			var pos = ParseInvocation(new(payload), binder, out message);
+			return true;
+		}
+		catch (InvalidDataException)
+		{
+			Log.NotAnInvocation(logger);
+			return InvalidMessage(out message);
+		}
 
-		return true;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -184,28 +193,10 @@ public partial class BLiveProtocol : IHubProtocol
 			AssertMethodParamTypes(binder, nameof(WellKnownMethods.OnPopularity), WellKnownMethods.OnPopularity.ParamTypes);
 			return new InvocationMessage(nameof(WellKnownMethods.OnPopularity), new object[] { value });
 		}
-		catch (ArgumentException ex)
+		catch (BindingFailureException ex)
 		{
 			return new InvocationBindingFailureMessage(null, WellKnownMethods.OnPopularity.Name, ExceptionDispatchInfo.Capture(ex));
 		}
-	}
-
-	/// <devdoc>
-	/// <summary>
-	/// 解析<see cref="OpCode.Message"/>数据包中的Json信息
-	/// </summary>
-	/// <returns>单条json的最后一个标记位置</returns>
-	/// </devdoc>
-	[SuppressMessage("Performance", "CA1822:将成员标记为 static", Justification = "还没写完")]
-	[SuppressMessage("Style", "IDE0060:删除未使用的参数", Justification = "同上")]
-	private SequencePosition ParseInvocation(Utf8JsonReader reader, IInvocationBinder binder, out HubMessage msg)
-	{
-		throw new NotImplementedException();
-
-#pragma warning disable CS0162 // 检测到无法访问的代码
-		//TODO: 解析json
-		return reader.Position;
-#pragma warning restore CS0162 // 检测到无法访问的代码
 	}
 
 	private static MemoryBufferWriter.WrittenSequence DecompressData(in FrameHeader header, in ReadOnlySequence<byte> compressedPackage)
@@ -248,7 +239,7 @@ public partial class BLiveProtocol : IHubProtocol
 				sb.AppendLiteral(", ");
 			}
 			string message = string.Format(SR.Sig_Mismatch, methodName, sb.ToStringAndClear());
-			throw new ArgumentException(message);
+			throw new BindingFailureException(message);
 		}
 	}
 

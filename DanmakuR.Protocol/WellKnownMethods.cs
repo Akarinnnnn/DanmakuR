@@ -1,4 +1,6 @@
-﻿namespace DanmakuR.Protocol
+﻿using System.Text.Json;
+
+namespace DanmakuR.Protocol
 {
 	public static class WellKnownMethods
 	{
@@ -19,10 +21,16 @@
 			new[] { typeof(int) }
 		);
 
+		public static readonly MethodDefination OnMessageJsonDocument = new(
+			nameof(OnMessageJsonDocument),
+			new[] { typeof(JsonDocument) }
+		);
+
 		/// <summary>
 		/// 此API用于内部实现，不应直接使用
 		/// </summary>
-		public static readonly MethodDefination ProtocolOnAggreatedMessage = new("bliveInternal_ProtocolOnAggreatedMessage",
+		public static readonly MethodDefination ProtocolOnAggreatedMessage = new(
+			"bliveInternal_ProtocolOnAggreatedMessage",
 			new[] { typeof(ParsingAggreatedMessageState) }
 		);
 	}
