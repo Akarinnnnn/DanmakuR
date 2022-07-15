@@ -11,6 +11,7 @@ using DanmakuR.Protocol.Model;
 using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
 using System.Net;
 using Microsoft.AspNetCore.Http.Connections.Client;
+using System.Text.Json;
 
 namespace DanmakuR
 {
@@ -56,6 +57,14 @@ namespace DanmakuR
 				.Configure(configureOptions);
 
 			return builder;
+		}
+
+		public static HubConnection BindListeners(this HubConnection connection, IDanmakuSource listener)
+		{
+			connection.On(WellKnownMethods.OnPopularity.Name, new Func<int, Task>(listener.OnPopularityAsync));
+			connection.On(WellKnownMethods.OnMessageJsonDocument.Name, new Func<string, JsonDocument, Task>(listener.OnMessageJsonDocumentAsync));
+
+			return connection;
 		}
 	}
 }

@@ -1,22 +1,57 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
+﻿using DanmakuR.Protocol;
+using DanmakuR.Protocol.Model;
+using Microsoft.AspNetCore.Connections;
+using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.AspNetCore.SignalR.Protocol;
+using Microsoft.Extensions.Options;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DanmakuR
 {
-	public class BLiveHubConnectionBuilder : HubConnectionBuilder
+	public class BLiveHubConnectionBuilder : IHubConnectionBuilder
 	{
 		public BLiveHubConnectionBuilder()
 		{
 			this.UseBLiveProtocol();
-			
 		}
 
-		public new HubConnection Build()
-		{
-			var connection = base.Build();
+		private bool isBuilt = false;
 
-			// Todo: 以后考虑注册一个函数，用来解决一个数据包含有多个信息的问题
-			// 现在的做法不符合HubProtocol不能有状态的准则
-			// 多线程也容易出现资源争用问题
+		public IServiceCollection Services { get; } = new ServiceCollection();
+		public BLiveProtocol? HubProtocol { get; private set; } = null;
+
+		[MemberNotNull(nameof(HubProtocol))]
+		public HubConnection Build()
+		{
+			if (isBuilt)
+				throw new InvalidOperationException(
+					$"同一个{nameof(BLiveHubConnectionBuilder)}" +
+					$"只能创建一个{nameof(HubConnection)}。" +
+					$"这是{nameof(HubConnection)}的限制。"
+				);
+
+			var provider = Services.BuildServiceProvider();
+
+			_ = provider.GetService<IConnectionFactory>() ??
+				throw new InvalidOperationException($"无法创建{nameof(HubConnection)}实例，" +
+				$"缺少{nameof(IConnectionFactory)}服务。");
+
+			_ = provider.GetService<IOptions<Handshake2>>() ?? 
+					throw new InvalidOperationException($"无法创建{nameof(HubConnection)}实例，" +
+					$"未配置{nameof(IOptions<Handshake2>)}。" +
+					$"是否忘记调用{nameof(DanmakuRExtensions)}.{nameof(DanmakuRExtensions.WithRoomid)}？");
+
+			HubProtocol = provider.GetService<IHubProtocol>() as BLiveProtocol ?? 
+				throw new InvalidOperationException($"无法创建{nameof(HubConnection)}实例，" +
+				$"必须使用{nameof(BLiveProtocol)}作为{nameof(IHubProtocol)}的实现。");
+
+			var connection = provider.GetRequiredService<HubConnection>();
+
+			connection.On(WellKnownMethods.ProtocolOnAggreatedMessage.Name, 
+				new Func<ParsingAggreatedMessageState, Task>(BLiveProtocol.HandleAggreatedMessages));
+
+			isBuilt = true;
+
 			return connection;
 		}
 	}
