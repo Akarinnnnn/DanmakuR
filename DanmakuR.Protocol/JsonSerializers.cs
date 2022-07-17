@@ -23,11 +23,15 @@ namespace DanmakuR.Protocol
 		{
 			options = new(JsonSerializerDefaults.General)
 			{
-				Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+				Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+				IncludeFields = true,
+				IgnoreReadOnlyFields = false,
+				IgnoreReadOnlyProperties = false,
+				DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
 			};
 			options.AddContext<HandshakeJsonContext>();
 		}
-		internal static JsonSerializerOptions RecommedOptions => options;
+		internal static JsonSerializerOptions RecommdedOptions => options;
 		internal static void Serialize(this Handshake2 handshake, IBufferWriter<byte> buffer)
 		{
 			using Utf8JsonWriter writer = new(buffer);

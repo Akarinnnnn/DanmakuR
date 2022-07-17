@@ -91,7 +91,7 @@ public class BLiveHandshakeProtocol : IHandshakeProtocol
 		{
 			hs2.Serialize(temp);
 			header.OpCode = OpCode.ConnectAndAuth;
-			header.FrameLength = checked((int)(header.HeaderLength + temp.Length));
+			header.FrameLength = unchecked((int)(header.HeaderLength + temp.Length));
 		}
 		else
 		{

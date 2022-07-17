@@ -16,7 +16,7 @@ connBuilder.WithRoomid(1, x =>
 var connection = connBuilder.Build();
 Listener listener = new(app.Services.GetRequiredService<ILogger<Listener>>(), 1);
 connection.BindListeners(listener);
-connection.HandshakeTimeout = TimeSpan.FromSeconds(5);
+// connection.HandshakeTimeout = TimeSpan.FromSeconds(5);
 connection.KeepAliveInterval = TimeSpan.FromSeconds(35);
 Console.CancelKeyPress += async (sender, eargs) =>
 {

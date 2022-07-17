@@ -15,7 +15,8 @@ public class Startup
 	{
 		services.AddSingleton<NullLoggerFactory>()
 			.AddSingleton<NullLogger>()
-			.AddHandshake2(2003470)
+			.AddHandshake2()
+			.Configure<Handshake2>(x => x.Roomid = 114514)
 			.AddBLiveOptions()
 			.AddBLiveProtocol();
 	}

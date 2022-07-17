@@ -109,7 +109,7 @@ namespace DanmakuR.Protocol.Buffer
 			Span<byte> span = buff.GetSpan(Unsafe.SizeOf<FrameHeader>());
 			ReverseEndiannessIfLE(ref header);
 			MemoryMarshal.Write(span, ref header);
-			buff.Advance(header.HeaderLength);
+			buff.Advance(Unsafe.SizeOf<FrameHeader>());
 		}
 
 		/// <summary>

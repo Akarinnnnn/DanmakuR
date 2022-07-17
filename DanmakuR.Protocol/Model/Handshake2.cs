@@ -8,7 +8,6 @@ namespace DanmakuR.Protocol.Model
 	/// <remarks>
 	/// 推荐使用<see cref="DanmakuRExtensions.AddHandshake(IHubConnectionBuilder, Action{Handshake2})"/>
 	/// </remarks>
-	[JsonNumberHandling(JsonNumberHandling.Strict)]
 	public class Handshake2
 	{
 		/// <summary>

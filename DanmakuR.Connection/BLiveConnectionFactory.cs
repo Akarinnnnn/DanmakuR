@@ -44,7 +44,7 @@ namespace DanmakuR.Connection
 		}
 
 
-		public virtual async ValueTask<ConnectionContext> ConnectAsync(EndPoint _, CancellationToken cancellationToken = default)
+		public virtual async ValueTask<ConnectionContext> ConnectAsync(EndPoint ep, CancellationToken cancellationToken = default)
 		{
 			using HttpClient httpClient = new();
 			var negotiateResponse = await httpClient.GetFromJsonAsync<NegotiateResponse>(
@@ -64,9 +64,18 @@ namespace DanmakuR.Connection
 					TransportTypes.RawSocket :
 					TransportTypes.InsecureWebsocket;
 
-			if (protocol_options.TransportType.HasRawSocket() && socket_options != null)
+			if (socket_options != null)
 			{
-				context = await ConnectSocket(negotiateResponse, cancellationToken);
+				if(ep is IPEndPoint)
+				{
+					var socket = CreateSocket();
+					await socket.ConnectAsync(ep);
+					context = CreateSocketContext(socket);
+				}
+				else
+				{
+					context = await ConnectSocket(negotiateResponse, cancellationToken);
+				}
 			}
 			else if (http_options != null)
 			{
@@ -150,23 +159,33 @@ namespace DanmakuR.Connection
 
 		private async ValueTask<ConnectionContext> ConnectSocket(NegotiateResponse? negotiateResponse, CancellationToken cancellationToken)
 		{
-			Socket socket = new(SocketType.Stream, ProtocolType.Tcp)
-			{
-				Blocking = false,
-				ReceiveTimeout = 45 * 1000
-			};
+			Socket socket = CreateSocket();
 
 			if (negotiateResponse == null || !negotiateResponse.IsValid)
 				await ConnectSocketAsync(Host.DefaultHosts, socket, cancellationToken);
 			else
 				await ConnectSocketAsync(negotiateResponse.data.host_list, socket, cancellationToken);
-			
+
+			return CreateSocketContext(socket);
+		}
+
+		private ConnectionContext CreateSocketContext(Socket socket)
+		{
 			socket_factory = new SocketConnectionContextFactory(
 				socket_options!,
 				logger_factory.CreateLogger<SocketConnectionContextFactory>()
 			);
 
 			return socket_factory.Create(socket);
+		}
+
+		private static Socket CreateSocket()
+		{
+			return new(SocketType.Stream, ProtocolType.Tcp)
+			{
+				Blocking = false,
+				ReceiveTimeout = 45 * 1000
+			};
 		}
 
 		private static async ValueTask ConnectSocketAsync(Host[] hosts, Socket socket, CancellationToken cancellationToken)
