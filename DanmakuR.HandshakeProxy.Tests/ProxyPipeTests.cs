@@ -10,7 +10,7 @@ namespace DanmakuR.HandshakeProxy.Tests
 			Pipe transport = new();
 			source.Output = transport.Writer;
 
-			ProxyDuplexPipe testee = new(source, static (b, _) => (true, b.Start), TransformAppRequest);
+			RewriteHandshakeDuplexPipe testee = new(source, static (b, _) => (true, b.Start), TransformAppRequest);
 
 			testee.Output.Write(TestHelpers.AppRequest);
 			await testee.Output.FlushAsync();
@@ -30,7 +30,7 @@ namespace DanmakuR.HandshakeProxy.Tests
 
 			source.Input = transport.Object;
 
-			ProxyDuplexPipe testee = new(source, TransformServerResponse, static (b, _) => (true, b.Start));
+			RewriteHandshakeDuplexPipe testee = new(source, TransformServerResponse, static (b, _) => (true, b.Start));
 			var result = await testee.Input.ReadAsync();
 
 			Assert.True(AppDesiredResponse.AsSpan().SequenceEqual(result.Buffer.FirstSpan));

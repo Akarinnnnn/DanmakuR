@@ -8,21 +8,25 @@ namespace DanmakuR.HandshakeProxy
 	public sealed class HandshakeProxyConnection : ConnectionContext
 	{
 		private readonly ConnectionContext backing;
+		private readonly RewriteHandshakeDuplexPipe rewrite_handler;
 
 		public HandshakeProxyConnection(ConnectionContext backing, HandshakeProxyConnectionOptions options)
 		{
 			this.backing = backing;
 			ArgumentNullException.ThrowIfNull(options.TransformRequest);
 			ArgumentNullException.ThrowIfNull(options.TransformResponse);
-			var proxy = new ProxyDuplexPipe(backing.Transport, options.TransformResponse, options.TransformRequest);
-			Transport = proxy;
-			Task.Run(async () =>
-			{
-				await proxy.ProxyingTask;
-				Transport = backing.Transport;
-				await proxy.FlushAllAsync();
-			});
+			rewrite_handler = new RewriteHandshakeDuplexPipe(backing.Transport, options.TransformResponse, options.TransformRequest);
+			Transport = rewrite_handler;
+			RewriteAndRedirectTask = Start();
 		}
+
+		private async Task Start()
+		{
+			await rewrite_handler.RewriteTask;
+			Transport = backing.Transport;
+			await rewrite_handler.FlushAllAsync();
+		}
+
 
 		public override IDuplexPipe Transport { get; set; }
 
@@ -31,10 +35,21 @@ namespace DanmakuR.HandshakeProxy
 		public override IFeatureCollection Features => backing.Features;
 
 		public override IDictionary<object, object?> Items { get => backing.Items; set => backing.Items = value; }
-
-		public override ValueTask DisposeAsync()
+		public Task RewriteAndRedirectTask { get; }
+		public override async ValueTask DisposeAsync()
 		{
-			return backing.DisposeAsync();
+			try
+			{
+				await RewriteAndRedirectTask;
+			}
+			catch
+			{
+
+			}
+			finally
+			{
+				await backing.DisposeAsync();
+			}
 		}
 	}
 }
