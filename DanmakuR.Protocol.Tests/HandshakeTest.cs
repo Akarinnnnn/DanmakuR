@@ -13,7 +13,6 @@ namespace DanmakuR.Protocol.Tests
 			obj.Roomid = 114514;
 			obj.Platform = "";
 			obj.EnsureValid();
-			ArrayBufferWriter<byte> output = new(64);
 
 			// string refl = JsonSerializer.Serialize(obj);
 			string ctx = JsonSerializer.Serialize(obj, SerializationExtensions.RecommdedOptions);

@@ -18,24 +18,11 @@ namespace DanmakuR.Protocol
 
 	internal static class SerializationExtensions
 	{
-		private static readonly JsonSerializerOptions options;
-		static SerializationExtensions()
-		{
-			options = new(JsonSerializerDefaults.General)
-			{
-				Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-				IncludeFields = true,
-				IgnoreReadOnlyFields = false,
-				IgnoreReadOnlyProperties = false,
-				DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-			};
-			options.AddContext<HandshakeJsonContext>();
-		}
-		internal static JsonSerializerOptions RecommdedOptions => options;
+		internal static JsonSerializerOptions RecommdedOptions => HandshakeJsonContext.Default.Options;
 		internal static void Serialize(this Handshake2 handshake, IBufferWriter<byte> buffer)
 		{
 			using Utf8JsonWriter writer = new(buffer);
-			JsonSerializer.Serialize(writer, handshake, options);
+			JsonSerializer.Serialize(writer, handshake, RecommdedOptions);
 		}
 	}
 }
