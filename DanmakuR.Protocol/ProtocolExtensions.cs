@@ -1,6 +1,7 @@
 ﻿using DanmakuR.Protocol.Model;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
@@ -14,18 +15,14 @@ namespace DanmakuR.Protocol
 	{
 		public static IServiceCollection AddBLiveProtocol(this IServiceCollection services)
 		{
-			services.AddSingleton<IHubProtocol, BLiveProtocol>();
+			services.TryAddSingleton<IHubProtocol, BLiveProtocol>();
 			return services;
 		}
 
-		public static IServiceCollection AddHandshake2(this IServiceCollection services, int roomid, Action<Handshake2>? configure = null)
+		public static IServiceCollection AddHandshake2(this IServiceCollection services)
 		{
 			var builder = services.AddOptions<Handshake2>()
-				.Configure(hs2 => hs2.Roomid = roomid)
 				.PostConfigure(hs2 => hs2.EnsureValid());
-
-			if (configure != null)
-				builder.Configure(configure);
 
 			return services;
 		}

@@ -1,7 +1,13 @@
 ﻿<Project>
 	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
 		<SharedSourceRoot>$(MSBuildThisFileDirectory)AspNetCoreShared\</SharedSourceRoot>
 		<OutputType>Library</OutputType>
 		<NeutralLanguage>zh-CN</NeutralLanguage>
+		<RepositoryUrl>https://github.com/Akarinnnnn/DanmakuR</RepositoryUrl>
+		<RepositoryBranch>master</RepositoryBranch>
+		<PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<Authors>Fa_ge</Authors>
 	</PropertyGroup>
 </Project>

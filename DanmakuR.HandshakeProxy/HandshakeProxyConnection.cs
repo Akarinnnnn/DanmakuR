@@ -18,7 +18,7 @@ namespace DanmakuR.HandshakeProxy
 			Transport = proxy;
 			Task.Run(async () =>
 			{
-				await Task.WhenAll(proxy.ReadSourceTask, proxy.WriteSourceTask);
+				await proxy.ProxyingTask;
 				Transport = backing.Transport;
 				await proxy.FlushAllAsync();
 			});

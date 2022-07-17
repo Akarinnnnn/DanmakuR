@@ -179,7 +179,7 @@ public partial class BLiveProtocol : IHubProtocol
 		else
 		{
 			var reader = new SequenceReader<byte>(payload);
-			Debug.Assert(reader.TryReadBigEndian(out value));
+			reader.TryReadBigEndian(out value);
 		}
 
 		return value;

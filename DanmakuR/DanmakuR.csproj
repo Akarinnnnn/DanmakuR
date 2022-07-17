@@ -6,10 +6,11 @@
     <Nullable>enable</Nullable>
     <OutputType>Library</OutputType>
     <NeutralLanguage>zh-CN</NeutralLanguage>
+    <IsPackable>true</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
-	<InternalsVisibleTo Include="DanmakuRTests" />
+    <InternalsVisibleTo Include="DanmakuRTests" />
   </ItemGroup>
 
   <ItemGroup>

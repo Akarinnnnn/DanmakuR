@@ -29,8 +29,11 @@ namespace DanmakuR.HandshakeProxy
 			Output = appOutput.Writer;
 			Input = appInput.Reader;
 
-			ReadSourceTask = ReadTransport();
-			WriteSourceTask = SendToTransport();
+			ProxyingTask = Task.Run(async () =>
+			{
+				await SendToTransport();
+				await ReadTransport();
+			});
 		}
 
 		private async Task ReadTransport()
@@ -91,8 +94,7 @@ namespace DanmakuR.HandshakeProxy
 			}
 		}
 
-		public Task ReadSourceTask { get; }
-		public Task WriteSourceTask { get; }
+		public Task ProxyingTask { get; }
 
 		public PipeReader Input { get; }
 		public PipeWriter Output { get; }

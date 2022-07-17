@@ -12,7 +12,9 @@ namespace DanmakuR
 	{
 		public BLiveHubConnectionBuilder()
 		{
-			this.UseBLiveProtocol();
+			Services.AddLogging()
+				.AddSingleton<HubConnection>();
+			this.PrepareForBLiveProtocol();
 		}
 
 		private bool isBuilt = false;

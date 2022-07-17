@@ -6,20 +6,23 @@ using Microsoft.AspNetCore.Http.Connections.Client;
 using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 
 namespace DanmakuR.Connection
 {
-	public class BLiveConnectionFactory : IConnectionFactory
+	public class BLiveConnectionFactory : IConnectionFactory, IDisposable
 	{
 		private readonly SocketConnectionFactoryOptions? socket_options;
 		private readonly HttpConnectionOptions? http_options;
 		private readonly Handshake2 handshake;
 		private readonly BLiveOptions protocol_options;
 		private readonly ILoggerFactory logger_factory;
+		
+		private SocketConnectionContextFactory? socket_factory;
+		private bool is_disposed;
+
 		public BLiveConnectionFactory(IOptions<SocketConnectionFactoryOptions>? socketOptions,
 			IOptions<HttpConnectionOptions>? httpOptions,
 			IOptions<BLiveOptions> bDanmakuOptions,
@@ -41,7 +44,7 @@ namespace DanmakuR.Connection
 		}
 
 
-		public virtual async ValueTask<ConnectionContext> ConnectAsync(EndPoint endpoint, CancellationToken cancellationToken = default)
+		public virtual async ValueTask<ConnectionContext> ConnectAsync(EndPoint _, CancellationToken cancellationToken = default)
 		{
 			using HttpClient httpClient = new();
 			var negotiateResponse = await httpClient.GetFromJsonAsync<NegotiateResponse>(
@@ -49,7 +52,7 @@ namespace DanmakuR.Connection
 				NegotiateContext.Default.Options,
 				cancellationToken);
 			ConnectionContext context;
-			Debug.Assert(socket_options != null && http_options != null, "");
+			Debug.Assert(socket_options != null || http_options != null, "");
 
 			if (negotiateResponse != null && negotiateResponse.IsValid)
 			{
@@ -73,6 +76,10 @@ namespace DanmakuR.Connection
 			{
 				throw new ArgumentNullException($"{nameof(socket_options)}和{nameof(http_options)}", "这不科学");
 			}
+
+			if(negotiateResponse != null)
+				context.ConnectionId = negotiateResponse.data!.token;
+
 			return context;
 		}
 
@@ -143,27 +150,34 @@ namespace DanmakuR.Connection
 
 		private async ValueTask<ConnectionContext> ConnectSocket(NegotiateResponse? negotiateResponse, CancellationToken cancellationToken)
 		{
-			Socket socket;
-			if (negotiateResponse == null || !negotiateResponse.IsValid)
-				socket = await CreateSocketAsync(Host.DefaultHosts, cancellationToken);
-			else
-				socket = await CreateSocketAsync(negotiateResponse.data.host_list, cancellationToken);
-			var socketFactory = new SocketConnectionContextFactory(socket_options!,
-								logger_factory.CreateLogger<SocketConnectionContextFactory>());
+			Socket socket = new(SocketType.Stream, ProtocolType.Tcp)
+			{
+				Blocking = false,
+				ReceiveTimeout = 45 * 1000
+			};
 
-			return socketFactory.Create(socket);
+			if (negotiateResponse == null || !negotiateResponse.IsValid)
+				await ConnectSocketAsync(Host.DefaultHosts, socket, cancellationToken);
+			else
+				await ConnectSocketAsync(negotiateResponse.data.host_list, socket, cancellationToken);
+			
+			socket_factory = new SocketConnectionContextFactory(
+				socket_options!,
+				logger_factory.CreateLogger<SocketConnectionContextFactory>()
+			);
+
+			return socket_factory.Create(socket);
 		}
 
-		private static async ValueTask<Socket> CreateSocketAsync(Host[] hosts, CancellationToken cancellationToken)
+		private static async ValueTask ConnectSocketAsync(Host[] hosts, Socket socket, CancellationToken cancellationToken)
 		{
-			Socket socket = new(SocketType.Seqpacket, ProtocolType.Tcp);
 			List<SocketException> exceptions = new(hosts.Length);
 			foreach (Host host in hosts)
 			{
 				try
 				{
 					await socket.ConnectAsync(host.host, host.port, cancellationToken);
-					return socket;
+					return;
 				}
 				catch (SocketException ex)
 				{
@@ -171,7 +185,7 @@ namespace DanmakuR.Connection
 					continue;
 				}
 			}
-			throw new AggregateException("全部服务器均连接失败", exceptions);
+			throw new AggregateException("全部服务器均连接失败", exceptions.ToArray());
 		}
 
 		private void SanitizeHttpOptions()
@@ -180,6 +194,25 @@ namespace DanmakuR.Connection
 			localOpt.SkipNegotiation = true;
 			localOpt.Transports = HttpTransportType.WebSockets;
 			localOpt.AccessTokenProvider = null;
+		}
+
+		protected virtual void Dispose(bool disposing)
+		{
+			if (!is_disposed)
+			{
+				if (disposing)
+				{
+					socket_factory?.Dispose();
+				}
+
+				is_disposed = true;
+			}
+		}
+
+		public void Dispose()
+		{
+			Dispose(disposing: true);
+			GC.SuppressFinalize(this);
 		}
 	}
 }

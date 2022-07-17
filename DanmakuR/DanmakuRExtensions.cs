@@ -17,7 +17,12 @@ namespace DanmakuR
 {
 	public static class DanmakuRExtensions
 	{
-		public static IHubConnectionBuilder UseBLiveProtocol(this IHubConnectionBuilder builder,
+		private class FakeEndpoint : EndPoint
+		{
+
+		}
+
+		public static IHubConnectionBuilder PrepareForBLiveProtocol(this IHubConnectionBuilder builder,
 			TransportTypes transportType = TransportTypes.RawSocket,
 			Action<BLiveOptions>? configureOptions = null)
 		{
@@ -25,6 +30,10 @@ namespace DanmakuR
 				.AddBLiveProtocol()
 				.RemoveAll<IConnectionFactory>()
 				.AddSingleton<IConnectionFactory, HandshakeProxiedConnectionFactory>()
+				.AddSingleton<IHandshakeProtocol, BLiveHandshakeProtocol>()
+				.AddLogging()
+				.AddHandshake2()
+				.AddSingleton<EndPoint, FakeEndpoint>()
 				.AddBLiveOptions(transportType, configureOptions);
 
 			return builder;
@@ -32,8 +41,12 @@ namespace DanmakuR
 
 		public static IHubConnectionBuilder WithRoomid(this IHubConnectionBuilder builder, int roomid, Action<Handshake2>? configure = null)
 		{
-			builder.Services.AddHandshake2(roomid, configure);
-
+			builder.Services.AddHandshake2();
+			builder.Services.Configure<Handshake2>(x =>
+			{
+				x.Roomid = roomid;
+				configure?.Invoke(x);
+			});
 			return builder;
 		}
 

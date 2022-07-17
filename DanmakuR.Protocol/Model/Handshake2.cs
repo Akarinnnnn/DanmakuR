@@ -22,7 +22,7 @@ namespace DanmakuR.Protocol.Model
 		/// <summary>
 		/// 平台名称
 		/// </summary>
-		public string Platform = ".net";
+		public string? Platform = ".net";
 		/// <summary>
 		/// 数据包协议版本，1~3
 		/// </summary>
