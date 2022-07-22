@@ -27,15 +27,15 @@ namespace DanmakuR.HandshakeProxy
 		public RewriteHandshakeConnection(ConnectionContext backing, HandshakeProxyConnectionOptions options)
 		{
 			this.backing = backing;
-			ArgumentNullException.ThrowIfNull(options.TransformRequest);
-			ArgumentNullException.ThrowIfNull(options.TransformResponse);
+			ArgumentNullException.ThrowIfNull(options.RewriteAppRequest);
+			ArgumentNullException.ThrowIfNull(options.RewriteServerResponse);
 			originalTransport = backing.Transport;
 
 			var pair = DuplexPipe.CreateConnectionPair(pipeOptions, pipeOptions);
 			RewriteApplication = pair.Application;
 			Transport = pair.Transport;
-			processAppRequest = options.TransformRequest;
-			processServerResponse = options.TransformResponse;
+			processAppRequest = options.RewriteAppRequest;
+			processServerResponse = options.RewriteServerResponse;
 		}
 
 		internal IDuplexPipe RewriteApplication { get; }
@@ -49,48 +49,50 @@ namespace DanmakuR.HandshakeProxy
 		public override IDictionary<object, object?> Items { get => backing.Items; set => backing.Items = value; }
 
 		private async Task DoReceive()
-		{			
-			try
+		{
+			
+			bool handled = false;
+			do
 			{
-				using SemaphoreSlim readlock = new(1);
-				bool handled = false;
-				do
+				ReadResult result = await originalTransport.Input.ReadAsync();
+				var buffer = result.Buffer;
+				SequencePosition consumed = buffer.Start;
+				try
 				{
-					var result = await originalTransport.Input.ReadAsync();
-
-					(handled, var pos) = processAppRequest(result.Buffer, RewriteApplication.Output);
-					originalTransport.Input.AdvanceTo(pos);
+					(handled, consumed) = processServerResponse(buffer, RewriteApplication.Output);
+					originalTransport.Input.AdvanceTo(consumed, buffer.End);
 
 					if (result.IsCompleted)
 					{
 						await RewriteApplication.Output.CompleteAsync();
 						break;
 					}
-				} while (!handled);
 
-				while (true)
-				{
-					await originalTransport.Input.CopyToAsync(RewriteApplication.Output);
+					if (handled)
+					{
+						Transport = originalTransport;
+						await RewriteApplication.Output.FlushAsync();
+					}
 				}
-			}
-			catch (Exception ex)
-			{
-				await RewriteApplication.Output.CompleteAsync(ex);
-				await originalTransport.Input.CompleteAsync(ex);
-			}
+				catch (Exception ex)
+				{
+					originalTransport.Input.AdvanceTo(consumed, buffer.End);
+					RewriteApplication.Output.Complete(ex);
+					break;
+				}
+			} while (!handled);
 		}
 
 		private async Task DoSend()
 		{
-			try
+			bool handled = false;
+			do
 			{
-				bool handled = false;
-
-				do
+				var result = await RewriteApplication.Input.ReadAsync();
+				try
 				{
-					var result = await RewriteApplication.Input.ReadAsync();
 
-					(handled, var pos) = processServerResponse(result.Buffer, originalTransport.Output);
+					(handled, var pos) = processAppRequest(result.Buffer, originalTransport.Output);
 					RewriteApplication.Input.AdvanceTo(pos);
 
 					if (result.IsCompleted)
@@ -98,23 +100,23 @@ namespace DanmakuR.HandshakeProxy
 						await originalTransport.Output.CompleteAsync();
 						break;
 					}
-				} while (!handled);
 
-				while (true)
-				{
-					await RewriteApplication.Input.CopyToAsync(originalTransport.Output);
+					if (handled)
+					{
+						await originalTransport.Output.FlushAsync();
+					}
 				}
-			}
-			catch (Exception ex)
-			{
-				await originalTransport.Output.CompleteAsync(ex);
-				await RewriteApplication.Input.CompleteAsync(ex);
-			}
+				catch (Exception ex)
+				{
+					RewriteApplication.Input.AdvanceTo(result.Buffer.Start, result.Buffer.End);
+					originalTransport.Output.Complete(ex);
+					break;
+				}
+			} while (!handled);
 		}
 
 		public void Start()
 		{
-			// Todo: 有空再考虑把originalTransport接到Transport吧
 			sendTask = DoSend();
 			receiveTask = DoReceive();
 		}

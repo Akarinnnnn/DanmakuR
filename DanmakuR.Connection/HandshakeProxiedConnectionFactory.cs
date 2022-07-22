@@ -28,7 +28,7 @@ namespace DanmakuR.Connection
 			var ctx = await base.ConnectAsync(endpoint, cancellationToken);
 			var opts = new HandshakeProxyConnectionOptions
 			{
-				TransformResponse = (buffer, output) =>
+				RewriteServerResponse = (buffer, output) =>
 				{
 					if (protocol.TryParseResponseMessage(ref buffer, out var rsp))
 					{
@@ -40,7 +40,7 @@ namespace DanmakuR.Connection
 						return (false, buffer.Start);
 					}
 				},
-				TransformRequest = (buffer, output) =>
+				RewriteAppRequest = (buffer, output) =>
 				{
 					if(HandshakeProtocol.TryParseRequestMessage(ref buffer, out var req))
 					{

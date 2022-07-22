@@ -245,7 +245,10 @@ public partial class BLiveProtocol : IHubProtocol
 	public void WriteMessage(HubMessage message, IBufferWriter<byte> output)
 	{
 		if (ReferenceEquals(message, PingMessage.Instance) || message.GetType() == typeof(PingMessage))
+		{
 			PingMessageSpan.CopyTo(output.GetSpan(16));
+			return;
+		}
 
 		var tempBuffer = MemoryBufferWriter.Get();
 		try

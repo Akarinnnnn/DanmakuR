@@ -2,6 +2,6 @@
 
 public class HandshakeProxyConnectionOptions
 {
-	public TransformData TransformRequest { get; set; } = null!;
-	public TransformData TransformResponse { get; set; } = null!;
+	public TransformData RewriteAppRequest { get; set; } = null!;
+	public TransformData RewriteServerResponse { get; set; } = null!;
 }

@@ -85,8 +85,8 @@ public class ContextTest
 
 		RewriteHandshakeConnection testee = new(clientBacking, new HandshakeProxyConnectionOptions
 		{
-			TransformRequest = TransformAppRequest,
-			TransformResponse = TransformServerResponse
+			RewriteAppRequest = TransformAppRequest,
+			RewriteServerResponse = TransformServerResponse
 		});
 
 		var svTask = RunServerLoops(sv);
