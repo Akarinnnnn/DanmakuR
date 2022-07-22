@@ -20,7 +20,7 @@ connection.BindListeners(listener);
 connection.KeepAliveInterval = TimeSpan.FromSeconds(35);
 Console.CancelKeyPress += async (sender, eargs) =>
 {
-	Console.WriteLine("断开连接");
+	Console.WriteLine("已按下退出键，正在断开连接");
 	await connection.DisposeAsync();
 };
 
@@ -32,3 +32,4 @@ while ((state = connection.State) != HubConnectionState.Disconnected)
 	app.Logger.LogInformation("连接状态: {state}", state);
 }
 
+Console.WriteLine("已断开连接");
