@@ -53,7 +53,9 @@ namespace DanmakuR.Connection
 					}
 				}
 			};
-			return new HandshakeProxyConnection(ctx, opts);
+			var ctxRewrite = new RewriteHandshakeConnection(ctx, opts);
+			ctxRewrite.Start();
+			return ctxRewrite;
 		}
 	}
 }

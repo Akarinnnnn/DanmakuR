@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+	<Compile Include="$(SharedSourceRoot)DuplexPipe.cs" Link="Shared\DuplexPipe.cs" />
     <PackageReference Include="Microsoft.AspNetCore.Connections.Abstractions" Version="6.0.5" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="6.0.0" />
   </ItemGroup>

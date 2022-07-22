@@ -1,16 +1,13 @@
 ﻿using DanmakuR.Protocol.Buffer;
-using DanmakuR.Protocol.Buffer.Writers;
 using DanmakuR.Protocol.Model;
 using DanmakuR.Protocol.Resources;
 using Microsoft.AspNetCore.Connections;
-using Microsoft.AspNetCore.Internal;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Buffers;
 using System.Buffers.Binary;
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -112,7 +109,7 @@ public partial class BLiveProtocol : IHubProtocol
 					return BindAggreatedMessage(binder, out message, new(
 						this,
 						hubmessage_channel,
-						holder, 
+						holder,
 						isBr,
 						binder
 					));
@@ -137,7 +134,7 @@ public partial class BLiveProtocol : IHubProtocol
 		}
 	}
 
-	private bool BindAggreatedMessage(IInvocationBinder binder, out HubMessage message, ParsingAggreatedMessageState state)
+	private static bool BindAggreatedMessage(IInvocationBinder binder, out HubMessage message, ParsingAggreatedMessageState state)
 	{
 		try
 		{
@@ -271,8 +268,11 @@ public partial class BLiveProtocol : IHubProtocol
 		{
 			case CloseMessage:
 				break;
-
+			case PingMessage:
+				Debug.Fail("PingMessage不应该漏到这");
+				break;
 			default:
+				Debugger.Break();
 				throw new HubException(SR.Unsupported_Message);
 		}
 

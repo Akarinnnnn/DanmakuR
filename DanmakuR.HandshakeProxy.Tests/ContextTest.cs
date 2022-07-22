@@ -5,7 +5,7 @@ namespace DanmakuR.HandshakeProxy.Tests;
 public class ContextTest
 {
 
-	private static async Task HandshakeAsync(HandshakeProxyConnection connection)
+	private static async Task HandshakeAsync(RewriteHandshakeConnection connection)
 	{
 		WriteAppRequest(connection.Transport.Output);
 		var flushResult = await connection.Transport.Output.FlushAsync();
@@ -83,7 +83,7 @@ public class ContextTest
 			Output = svTransport.Writer
 		});
 
-		HandshakeProxyConnection testee = new(clientBacking, new HandshakeProxyConnectionOptions
+		RewriteHandshakeConnection testee = new(clientBacking, new HandshakeProxyConnectionOptions
 		{
 			TransformRequest = TransformAppRequest,
 			TransformResponse = TransformServerResponse

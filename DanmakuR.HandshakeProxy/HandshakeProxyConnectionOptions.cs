@@ -1,14 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace DanmakuR.HandshakeProxy;
 
-namespace DanmakuR.HandshakeProxy
+public class HandshakeProxyConnectionOptions
 {
-	public class HandshakeProxyConnectionOptions
-	{
-		public TransformData? TransformRequest { get; set; }
-		public TransformData? TransformResponse { get; set; }
-	}
+	public TransformData TransformRequest { get; set; } = null!;
+	public TransformData TransformResponse { get; set; } = null!;
 }
