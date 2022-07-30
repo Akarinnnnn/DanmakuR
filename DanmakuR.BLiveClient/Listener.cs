@@ -37,7 +37,7 @@ namespace DanmakuR.BLiveClient
 
 		public Task OnPopularityAsync(int popularity)
 		{
-			logger.LogInformation("气人值：", popularity);
+			logger.LogInformation("气人值：{popularity}", popularity);
 			return Task.CompletedTask;
 		}
 	}

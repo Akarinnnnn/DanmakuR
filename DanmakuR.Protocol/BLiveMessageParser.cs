@@ -43,7 +43,7 @@ namespace DanmakuR.Protocol
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal static bool TrySliceInput(in ReadOnlySequence<byte> input, out ReadOnlySequence<byte> payload, out FrameHeader header)
 		{
-			if (!(input.TryReadHeader(out header) && input.Length > header.FrameLength))
+			if (!(input.TryReadHeader(out header) && input.Length >= header.FrameLength))
 			{
 				header = default;
 				payload = default;
@@ -64,7 +64,7 @@ namespace DanmakuR.Protocol
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal static bool TrySlicePayload(ref ReadOnlySequence<byte> input, out OpCode opcode)
 		{
-			if (!(input.TryReadHeader(out var header) && input.Length > header.FrameLength))
+			if (!(input.TryReadHeader(out var header) && input.Length >= header.FrameLength))
 			{
 				opcode = OpCode.Invalid;
 				return false;

@@ -10,7 +10,7 @@ using System.IO;
 using System.Buffers;
 using protocol::DanmakuR.Protocol.Buffer;
 
-namespace DanmakuR.Buffer.Tests
+namespace DanmakuRTests.Buffer
 {
 	internal static class StreamHelpers
 	{
@@ -26,10 +26,10 @@ namespace DanmakuR.Buffer.Tests
 
 			while ((readE = excepted.Read(buffE.Span)) != 0 && (readA = actual.Read(buffA.Span)) != 0)
 			{
-				if(readE != readA)
+				if (readE != readA)
 					throw new AssertFailedException($"read: {readE} != {readA}.");
 
-				if (!MemoryExtensions.SequenceEqual(buffE.Span[0..readE], buffA.Span[0..readA]))
+				if (!buffE.Span[0..readE].SequenceEqual(buffA.Span[0..readA]))
 					throw new AssertFailedException($"Difference between [{excepted.Length}..{excepted.Length + readE}].");
 			}
 		}
@@ -61,7 +61,7 @@ namespace DanmakuR.Buffer.Tests
 			seq.DecompressBrotli(out seq);
 			StreamHelpers.AreEqual(src, new ReadOnlySequenceStream(ref seq));
 		}
-		
+
 		[DataRow("data/BDanmakuProtocol.cs")]
 		[TestMethod]
 		public void BrokenTest(string srcName)
@@ -88,7 +88,7 @@ namespace DanmakuR.Buffer.Tests
 			data.Reset(8192);
 			Memory<byte> compressed = data.Memory[..br.Read(data.Span)];
 			int midpoint = compressed.Length / 2;
-			SimpleSegment first = new (compressed[..midpoint], 0);
+			SimpleSegment first = new(compressed[..midpoint], 0);
 			SimpleSegment last = first.SetNext(compressed[midpoint..], midpoint);
 			ReadOnlySequence<byte> seq = new(first, 0, last, last.Memory.Length);
 			seq.DecompressBrotli(out seq);

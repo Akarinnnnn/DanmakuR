@@ -246,7 +246,7 @@ public partial class BLiveProtocol : IHubProtocol
 	{
 		if (ReferenceEquals(message, PingMessage.Instance) || message.GetType() == typeof(PingMessage))
 		{
-			PingMessageSpan.CopyTo(output.GetSpan(16));
+			output.Write(PingMessageSpan);
 			return;
 		}
 

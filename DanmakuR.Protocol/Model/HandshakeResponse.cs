@@ -1,16 +1,16 @@
 ﻿namespace DanmakuR.Protocol.Model;
 
 using Microsoft.AspNetCore.Internal;
-using Microsoft.AspNetCore.SignalR;
 using System.Buffers;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 
 internal class HandshakeResponse
 {
 	private static readonly JsonEncodedText CodePropertyName = JsonEncodedText.Encode("code");
 	private const string TemplateSuccessfulJson = "{\"code\":0}";
-	private static readonly JsonEncodedText TemplateSuccessful = JsonEncodedText.Encode(TemplateSuccessfulJson);
+	private static readonly byte[] TemplateSuccessful = Encoding.UTF8.GetBytes(TemplateSuccessfulJson);
 	/// <summary>
 	/// 
 	/// </summary>
@@ -71,7 +71,7 @@ internal class HandshakeResponse
 	{
 		if (response.IsSingleSegment && response.Length == TemplateSuccessfulJson.Length)
 		{
-			return response.FirstSpan.SequenceEqual(TemplateSuccessful.EncodedUtf8Bytes);
+			return response.FirstSpan.SequenceEqual(TemplateSuccessful);
 		}
 		else
 		{
@@ -87,6 +87,6 @@ internal class HandshakeResponse
 	{
 		Span<byte> comparingBuffer = stackalloc byte[TemplateSuccessfulJson.Length];
 		new SequenceReader<byte>(response).TryCopyTo(comparingBuffer);
-		return comparingBuffer.SequenceEqual(TemplateSuccessful.EncodedUtf8Bytes);
+		return comparingBuffer.SequenceEqual(TemplateSuccessful);
 	}
 }

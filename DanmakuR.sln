@@ -35,7 +35,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DanmakuR.HandshakeProxy", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DanmakuR.HandshakeProxy.Tests", "DanmakuR.HandshakeProxy.Tests\DanmakuR.HandshakeProxy.Tests.csproj", "{1B67991B-5310-43F7-BF7F-F7060C278E3E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DanmakuR.BLiveClient", "DanmakuR.BLiveClient\DanmakuR.BLiveClient.csproj", "{3D61D880-A064-455E-9ED1-3E2E816D186E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DanmakuR.BLiveClient", "DanmakuR.BLiveClient\DanmakuR.BLiveClient.csproj", "{3D61D880-A064-455E-9ED1-3E2E816D186E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DanmakuR.BLive.PseudoServer", "DanmakuR.BLive.PseudoServer\DanmakuR.BLive.PseudoServer.csproj", "{39A5D2BE-41CF-4ACA-8A4F-98FF2FB1163D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -75,6 +77,10 @@ Global
 		{3D61D880-A064-455E-9ED1-3E2E816D186E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3D61D880-A064-455E-9ED1-3E2E816D186E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3D61D880-A064-455E-9ED1-3E2E816D186E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{39A5D2BE-41CF-4ACA-8A4F-98FF2FB1163D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39A5D2BE-41CF-4ACA-8A4F-98FF2FB1163D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39A5D2BE-41CF-4ACA-8A4F-98FF2FB1163D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39A5D2BE-41CF-4ACA-8A4F-98FF2FB1163D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
