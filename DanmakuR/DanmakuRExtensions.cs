@@ -17,11 +17,6 @@ namespace DanmakuR
 {
 	public static class DanmakuRExtensions
 	{
-		private class FakeEndpoint : EndPoint
-		{
-
-		}
-
 		public static IHubConnectionBuilder PrepareForBLiveProtocol(this IHubConnectionBuilder builder,
 			TransportTypes transportType = TransportTypes.RawSocket,
 			Action<BLiveOptions>? configureOptions = null)
@@ -33,7 +28,7 @@ namespace DanmakuR
 				.AddSingleton<IHandshakeProtocol, BLiveHandshakeProtocol>()
 				.AddLogging()
 				.AddHandshake2()
-				.AddSingleton<EndPoint, FakeEndpoint>()
+				.AddSingleton<EndPoint, PlaceHoldingEndPoint>()
 				.AddBLiveOptions(transportType, configureOptions);
 
 			return builder;
