@@ -78,7 +78,7 @@ public partial class BLiveProtocol : IHubProtocol
 	/// <param name="input">可能是压缩的数据包</param>
 	/// <returns></returns>
 	/// </devdoc>
-	private bool ParseMessageCore(IInvocationBinder binder, out HubMessage? message, ref ReadOnlySequence<byte> input)
+	private bool ParseMessageCore(IInvocationBinder binder, [NotNullWhen(true)] out HubMessage? message, ref ReadOnlySequence<byte> input)
 	{
 		if (TrySliceInput(in input, out var payload, out var header))
 		{
@@ -114,7 +114,8 @@ public partial class BLiveProtocol : IHubProtocol
 						binder
 					));
 				}
-
+				
+				input = input.Slice(header.FrameLength);
 				return HandleInvocation(binder, out message, payload);
 			}
 			catch (JsonException)

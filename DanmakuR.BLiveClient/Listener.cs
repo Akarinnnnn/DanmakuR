@@ -22,17 +22,21 @@ namespace DanmakuR.BLiveClient
 			basepath = Path.Combine(
 				Path.GetDirectoryName(Environment.ProcessPath) 
 				?? Environment.CurrentDirectory, 
-				$"rid-{roomid}"
+				$"rid-{roomid}-{DateTime.Now:yyyy-MM-dd HH-mm-ss}"
 			);
 			basepath = Path.GetFullPath(basepath);
 			Directory.CreateDirectory(basepath);
 		}
 
-		public async Task OnMessageJsonDocumentAsync(string messageName, JsonDocument message)
+		public async Task OnMessageJsonDocumentAsync(string cmdName, JsonDocument message)
 		{
 			ulong currentId = Interlocked.Increment(ref msgid);
-			using var stream = File.OpenWrite(Path.Combine(basepath, $"{currentId}-{messageName}"));
+			int msgHashcode = message.GetHashCode();
+			logger.LogInformation("{currentId}-{cmdName}-{msgHashcode}", cmdName, currentId, msgHashcode);
+			using var stream = File.OpenWrite(Path.Combine(basepath, $"{currentId}-{cmdName}.json"));
+			//var stream = Stream.Null;
 			await JsonSerializer.SerializeAsync(stream, message, serializerOptions);
+			logger.LogInformation("{currentId}-{cmdName}-{msgHashcode} 保存完成", cmdName, currentId, msgHashcode);
 		}
 
 		public Task OnPopularityAsync(int popularity)

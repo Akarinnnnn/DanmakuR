@@ -31,51 +31,35 @@ partial class BLiveProtocol
 	/// </devdoc>
 	private SequencePosition ParseInvocation(Utf8JsonReader reader, IInvocationBinder binder, out HubMessage msg)
 	{
-		//TODO: 解析json
 		try
 		{
 			AssertMethodParamTypes(binder, ProtocolOnAggreatedMessage.Name, ProtocolOnAggreatedMessage.ParamTypes);
+			reader.CheckRead();
 			reader.EnsureObjectStart();
-			JsonDocument? dataBody = null;
+			JsonDocument? fullData = null;
 			string? cmdName = null;
-			while (reader.Read())
+			fullData = JsonDocument.ParseValue(ref reader);
+
+			try
 			{
-				if (reader.TokenType == JsonTokenType.PropertyName)
-				{
-					if (reader.ValueTextEquals(TextCmd.EncodedUtf8Bytes))
-					{
-						cmdName = reader.ReadAsString(NameCmd);
-						break;
-					}
-					else if (reader.ValueTextEquals(TextData.EncodedUtf8Bytes))
-					{
-						reader.EnsureObjectStart();
-						dataBody = JsonDocument.ParseValue(ref reader);
-					}
-					else
-					{
-						Log.UnreconizedInvocationProperty(logger, reader.GetString()!);
-						reader.Skip();
-					}
-				}
+				cmdName = fullData.RootElement.GetProperty("cmd").GetString();
+			}
+			catch (KeyNotFoundException ex)
+			{
+				throw new InvalidDataException("缺少cmd属性", ex);
 			}
 
-			if(cmdName == null)
+			if (cmdName == null)
 			{
 				throw new InvalidDataException("缺少cmd属性");
 			}
 
-			if(dataBody == null)
-			{
-				throw new InvalidDataException("缺少data属性");
-			}
 
-			msg = new InvocationMessage(OnMessageJsonDocument.Name, new object[] { cmdName, dataBody });
+			msg = new InvocationMessage(OnMessageJsonDocument.Name, new object[] { cmdName, fullData });
 		}
 		catch (BindingFailureException ex)
 		{
 			msg = new InvocationBindingFailureMessage(null, ProtocolOnAggreatedMessage.Name, ExceptionDispatchInfo.Capture(ex));
-
 		}
 		return reader.Position;
 	}

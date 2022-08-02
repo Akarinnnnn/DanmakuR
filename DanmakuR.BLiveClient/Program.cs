@@ -1,30 +1,59 @@
 using DanmakuR;
 using DanmakuR.BLiveClient;
 using DanmakuR.Protocol.Model;
+using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.Configuration;
 using System.Net;
-
+using static DanmakuR.BLiveClient.Configuration;
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddCommandLine(args, new Dictionary<string, string>
 {
-	{"-ps", "PseudoServer" },
-	{ "--pseudoServer", "PseudoServer" }
+	{ "-ps", SectionName + ":PseudoServer" },
+	{ "-rid", SectionName + ":RoomId" },
+	{ "-iep", SectionName + ":IPEndPoint" },
 });
 var app = builder.Build();
 
+var cfg = new Configuration();
+app.Configuration.Bind(SectionName, cfg);
+
+app.Logger.LogInformation("房号：{roomid}", cfg.RoomId);
 var connBuilder = new BLiveHubConnectionBuilder();
-connBuilder.UseSocketTransport(_ => { });
-connBuilder.WithRoomid(1, x =>
+connBuilder.WithRoomid(cfg.RoomId, x =>
 {
-	x.AcceptedPacketType = FrameVersion.Deflate;
-	x.Platform = $".NET {typeof(object).Assembly.ImageRuntimeVersion}";
+	x.AcceptedPacketType = FrameVersion.Brotli;
+	x.Platform = $".NET {typeof(object).Assembly.GetName().Version}";
 });
 
-if (builder.Configuration.GetValue("PseudoServer", false))
-	connBuilder.Services.AddSingleton<EndPoint, IPEndPoint>(_ => new IPEndPoint(IPAddress.Loopback, 2243));
+if (cfg.PseudoServer)
+{
+	connBuilder.UseSocketTransport(_ => { })
+		.Services
+		.AddSingleton<EndPoint, IPEndPoint>(_ => new IPEndPoint(IPAddress.Loopback, 2243));
+}
+else if (cfg.IPEndPoint != null)
+{
+	connBuilder.UseSocketTransport(_ => { })
+		.Services
+		.AddSingleton<EndPoint, IPEndPoint>(_ => cfg.IPEndPoint);
+}
+else if (cfg.UriEndPoint != null)
+{
+	connBuilder.UseWebsocketTransport(o =>
+	{
+		o.Url = cfg.UriEndPoint.Uri;
+	}, cfg.UriEndPoint.Uri.Scheme == Uri.UriSchemeWss)
+		.Services
+		.AddSingleton<EndPoint, UriEndPoint>(_ => cfg.UriEndPoint);
+}
+else
+{
+	connBuilder.UseSocketTransport(_ => { });
+}
 
 var connection = connBuilder.Build();
-Listener listener = new(app.Services.GetRequiredService<ILogger<Listener>>(), 1);
+Listener listener = new(app.Services.GetRequiredService<ILogger<Listener>>(), cfg.RoomId);
 connection.BindListeners(listener);
 // connection.HandshakeTimeout = TimeSpan.FromSeconds(5);
 // connection.KeepAliveInterval = TimeSpan.FromSeconds(35);
@@ -32,13 +61,14 @@ Console.CancelKeyPress += async (sender, eargs) =>
 {
 	Console.WriteLine("已按下退出键，正在断开连接");
 	await connection.DisposeAsync();
+	Console.WriteLine("已断开连接");
 };
 
 if (builder.Configuration.GetValue("PseudoServer", false))
 {
 	connection.HandshakeTimeout = TimeSpan.FromMinutes(5);
 	connection.ServerTimeout = TimeSpan.FromMinutes(5);
-	connection.KeepAliveInterval = TimeSpan.FromSeconds(30); 
+	connection.KeepAliveInterval = TimeSpan.FromSeconds(30);
 }
 
 await connection.StartAsync();

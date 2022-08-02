@@ -2,6 +2,7 @@
 using DanmakuR.Protocol.Model;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
 namespace DanmakuR.Protocol
@@ -76,17 +77,17 @@ namespace DanmakuR.Protocol
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal static bool InsufficientDataToParse(out HubMessage? message)
+		internal static bool InsufficientDataToParse([NotNullWhen(true)] out HubMessage? message)
 		{
 			message = null;
 			return false;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal static bool InvalidMessage(out HubMessage? message)
+		internal static bool InvalidMessage([NotNullWhen(true)] out HubMessage? message)
 		{
 			message = null;
-			return true;
+			return false;
 		}
 
 	}

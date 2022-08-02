@@ -364,3 +364,4 @@ FodyWeavers.xsd
 /*/Properties/launchSettings.json
 /.vscode
 **SR.Designer.cs
+/DanmakuR.BLiveClient/.config/dotnet-tools.json
