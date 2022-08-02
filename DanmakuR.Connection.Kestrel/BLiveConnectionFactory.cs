@@ -3,27 +3,25 @@ using DanmakuR.Protocol.Model;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Http.Connections.Client;
-using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 
 namespace DanmakuR.Connection
 {
-	public class BLiveConnectionFactory : IConnectionFactory, IDisposable
+	public class SocketClientConnectionFactory : IConnectionFactory, IDisposable
 	{
 		private readonly SocketConnectionFactoryOptions? socket_options;
 		private readonly HttpConnectionOptions? http_options;
-		private readonly Handshake2 handshake;
-		private readonly BLiveOptions protocol_options;
 		private readonly ILoggerFactory logger_factory;
 		
 		private SocketConnectionContextFactory? socket_factory;
 		private bool is_disposed;
 
-		public BLiveConnectionFactory(IOptions<SocketConnectionFactoryOptions>? socketOptions,
+		public SocketClientConnectionFactory(IOptions<SocketConnectionFactoryOptions>? socketOptions,
 			IOptions<HttpConnectionOptions>? httpOptions,
 			IOptions<BLiveOptions> bDanmakuOptions,
 			ILoggerFactory loggerFactory)
@@ -46,18 +44,6 @@ namespace DanmakuR.Connection
 
 		public virtual async ValueTask<ConnectionContext> ConnectAsync(EndPoint ep, CancellationToken cancellationToken = default)
 		{
-			using HttpClient httpClient = new();
-			var negotiateResponse = await httpClient.GetFromJsonAsync<NegotiateResponse>(
-				$"https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id={handshake.Roomid}",
-				NegotiateContext.Default.Options,
-				cancellationToken);
-			ConnectionContext context;
-			Debug.Assert(socket_options != null || http_options != null, "");
-
-			if (negotiateResponse != null && negotiateResponse.IsValid)
-			{
-				handshake.CdnToken = negotiateResponse.data.token;
-			}
 
 			if(protocol_options.TransportType == TransportTypes.Unspecified)
 				protocol_options.TransportType = socket_options != null ?

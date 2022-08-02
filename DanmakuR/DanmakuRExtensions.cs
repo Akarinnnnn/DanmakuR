@@ -29,7 +29,7 @@ namespace DanmakuR
 			builder.Services.RemoveAll<IHubProtocol>()
 				.AddBLiveProtocol()
 				.RemoveAll<IConnectionFactory>()
-				.AddSingleton<IConnectionFactory, HandshakeProxiedConnectionFactory>()
+				.AddSingleton<IConnectionFactory, RewriteConnectionContextFactory>()
 				.AddSingleton<IHandshakeProtocol, BLiveHandshakeProtocol>()
 				.AddLogging()
 				.AddHandshake2()

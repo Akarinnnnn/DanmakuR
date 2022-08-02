@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net6.0</TargetFramework>
@@ -10,7 +10,7 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.AspNetCore.Http.Connections.Client" Version="6.0.5" />
 		<InternalsVisibleTo Include="DanmakuRTests" />
-		<Compile Include="$(SharedSourceRoot)*.cs" Link="Shared\%(Filename)%(Extension)" />
+		<Compile Include="$(SharedSourceRoot)DuplexPipe.cs" Link="Shared\DuplexPipe.cs" />
 
 	</ItemGroup>
 
