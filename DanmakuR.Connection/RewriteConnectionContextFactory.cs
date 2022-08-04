@@ -2,10 +2,7 @@
 using DanmakuR.Protocol;
 using DanmakuR.Protocol.Model;
 using Microsoft.AspNetCore.Connections;
-using Microsoft.AspNetCore.Http.Connections.Client;
-//using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
 using Microsoft.AspNetCore.SignalR.Protocol;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Net;
@@ -15,12 +12,9 @@ namespace DanmakuR.Connection
 {
 	public class RewriteConnectionContextFactory : IConnectionFactory
 	{
-		private const string KestrelSocketConnectionFactory = "Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.SocketConnectionFactory";
-
 		private readonly IHandshakeProtocol protocol;
 		private readonly Handshake2 handshake;
 		private readonly BLiveOptions protocol_options;
-		private NegotiateData? negotiate_result;
 
 		private List<EndPoint>? endpoints;
 		private int next_endpoint = 0;
@@ -30,7 +24,7 @@ namespace DanmakuR.Connection
 		public RewriteConnectionContextFactory(IHandshakeProtocol protocol, WrappedService<IConnectionFactory> service, IOptions<BLiveOptions> options)
 		{
 			protocol_options = options.Value;
-			handshake = protocol_options.HandshakeSettings;
+			handshake = protocol_options.Handshake;
 			basefac = service.GetRequiredService();
 			this.protocol = protocol;
 		}
@@ -56,13 +50,13 @@ namespace DanmakuR.Connection
 				yield return new UriEndPoint(builder.Uri);
 			}
 		}
-		
+
 		private static async ValueTask<List<EndPoint>> BuildIpEndPointsAsync(Host[] hosts, CancellationToken cancellationToken)
 		{
 			List<EndPoint> endpoints = new(hosts.Length);
 
 			// 没有ToListAsync，干脆包两层吧
-			await foreach(var ent in BuildListAsync())
+			await foreach (var ent in BuildListAsync())
 				endpoints.Add(ent);
 
 			return endpoints;
@@ -101,31 +95,45 @@ namespace DanmakuR.Connection
 		public async ValueTask<ConnectionContext> ConnectAsync(EndPoint endpoint, CancellationToken cancellationToken = default)
 		{
 			ConnectionContext ctx;
-			if (negotiate_result == null)
-			{
-				using HttpClient httpClient = new();
-
-				var negotiateResponse = await httpClient.GetFromJsonAsync<NegotiateResponse>(
-						$"https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id={handshake.Roomid}",
-						NegotiateContext.Default.Options,
-						cancellationToken);
-
-				if (negotiateResponse != null && negotiateResponse.IsValid)
-				{
-					negotiate_result = negotiateResponse.data;
-					handshake.CdnToken = negotiateResponse.data.token;
-				} 
-			}
 
 			if (endpoint is PlaceHoldingEndPoint)
 			{
-				if (endpoints == null && negotiate_result != null)
+				if (endpoints == null)
 				{
+					Host[]? hosts = null;
+
+					using HttpClient httpClient = new();
+
+					if (protocol_options.MightBeShortId)
+					{
+						var roomInitResponse = await httpClient.GetFromJsonAsync<ControllerResponse<RoomInitData>>(
+											$"https://api.live.bilibili.com/xlive/web-room/v1/index/mobileRoomInit?id={handshake.Roomid}",
+											NegotiateContext.Default.Options,
+											cancellationToken);
+						if (roomInitResponse != null && roomInitResponse.IsValid)
+						{
+							handshake.Roomid = roomInitResponse.data.room_id;
+						}
+					}
+
+					var negotiateResponse = await httpClient.GetFromJsonAsync<ControllerResponse<DanmuInfoData>>(
+							$"https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id={handshake.Roomid}",
+							NegotiateContext.Default.Options,
+							cancellationToken);
+
+					if (negotiateResponse != null && negotiateResponse.IsValid)
+					{
+						hosts = negotiateResponse.data.host_list;
+						handshake.CdnToken = negotiateResponse.data.token;
+					}
+
+					hosts ??= Host.DefaultHosts;
+
 					endpoints = protocol_options.TransportType switch
 					{
-						TransportTypes.SecureWebsocket => BuildWssEndPoints(negotiate_result.host_list).ToList(),
-						TransportTypes.RawSocket => await BuildIpEndPointsAsync(negotiate_result.host_list, cancellationToken),
-						_ => BuildWsEndPoints(negotiate_result.host_list).ToList(),
+						TransportTypes.SecureWebsocket => BuildWssEndPoints(hosts).ToList(),
+						TransportTypes.RawSocket => await BuildIpEndPointsAsync(hosts, cancellationToken),
+						_ => BuildWsEndPoints(hosts).ToList(),
 					};
 				}
 
@@ -149,7 +157,7 @@ namespace DanmakuR.Connection
 				},
 				RewriteAppRequest = (buffer, output) =>
 				{
-					if(HandshakeProtocol.TryParseRequestMessage(ref buffer, out var req))
+					if (HandshakeProtocol.TryParseRequestMessage(ref buffer, out var req))
 					{
 						protocol.WriteRequestMessage(req, output);
 						return (true, buffer.Start);

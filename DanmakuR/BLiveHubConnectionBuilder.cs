@@ -1,8 +1,10 @@
-﻿using DanmakuR.Protocol;
+﻿using DanmakuR.Connection;
+using DanmakuR.Protocol;
 using DanmakuR.Protocol.Model;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.AspNetCore.SignalR.Protocol;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System.Diagnostics.CodeAnalysis;
 
@@ -31,6 +33,8 @@ namespace DanmakuR
 					$"只能创建一个{nameof(HubConnection)}。" +
 					$"这是{nameof(HubConnection)}的限制。"
 				);
+			Services.Wrap<IConnectionFactory>()
+				.AddSingleton<IConnectionFactory, RewriteConnectionContextFactory>();
 
 			var provider = Services.BuildServiceProvider();
 

@@ -24,7 +24,6 @@ namespace DanmakuR
 			builder.Services.RemoveAll<IHubProtocol>()
 				.AddBLiveProtocol()
 				.RemoveAll<IConnectionFactory>()
-				.AddSingleton<IConnectionFactory, RewriteConnectionContextFactory>()
 				.AddSingleton<IHandshakeProtocol, BLiveHandshakeProtocol>()
 				.AddLogging()
 				.AddHandshake2()
@@ -45,15 +44,6 @@ namespace DanmakuR
 			return builder;
 		}
 
-		public static IHubConnectionBuilder UseSocketTransport(this IHubConnectionBuilder builder, 
-			Action<SocketConnectionFactoryOptions> configureOption)
-		{
-			builder.Services.Configure<BLiveOptions>(opt => opt.TransportType = TransportTypes.RawSocket)
-				.AddOptions<SocketConnectionFactoryOptions>()
-				.Configure(configureOption);
-			return builder;
-		}
-
 		public static IHubConnectionBuilder UseWebsocketTransport(this IHubConnectionBuilder builder,
 			Action<HttpConnectionOptions> configureOptions,
 			bool isSecure)
@@ -61,18 +51,26 @@ namespace DanmakuR
 			builder.Services.Configure<BLiveOptions>(opt => opt.TransportType = isSecure
 				? TransportTypes.SecureWebsocket
 				: TransportTypes.InsecureWebsocket)
+				.AddSingleton<IConnectionFactory, HttpConnectionFactory>()
 				.AddOptions<HttpConnectionOptions>()
 				.Configure(configureOptions);
 
 			return builder;
 		}
 
+		[Obsolete]
 		public static HubConnection BindListeners(this HubConnection connection, IDanmakuSource listener)
 		{
 			connection.On(WellKnownMethods.OnPopularity.Name, new Func<int, Task>(listener.OnPopularityAsync));
 			connection.On(WellKnownMethods.OnMessageJsonDocument.Name, new Func<string, JsonDocument, Task>(listener.OnMessageJsonDocumentAsync));
 
 			return connection;
+		}
+
+		public static void BindToConnection(this IDanmakuSource listener, HubConnection connection)
+		{
+			connection.On(WellKnownMethods.OnPopularity.Name, new Func<int, Task>(listener.OnPopularityAsync));
+			connection.On(WellKnownMethods.OnMessageJsonDocument.Name, new Func<string, JsonDocument, Task>(listener.OnMessageJsonDocumentAsync));
 		}
 	}
 }

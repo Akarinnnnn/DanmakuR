@@ -82,4 +82,9 @@ public static class WrappingServicesExtensions
 
 		return services;
 	}
+
+	public static IServiceCollection Wrap<T>(this IServiceCollection services)
+	{
+		return Wrap(services, typeof(T));
+	}
 }

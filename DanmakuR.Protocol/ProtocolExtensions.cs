@@ -35,7 +35,7 @@ namespace DanmakuR.Protocol
 			.Configure<IOptions<Handshake2>>((o, hs2) =>
 			{
 				o.TransportType = transportType;
-				o.HandshakeSettings = hs2.Value;
+				o.Handshake = hs2.Value;
 			})
 			.PostConfigure(o =>
 			{
@@ -46,7 +46,7 @@ namespace DanmakuR.Protocol
 			})
 			.Validate(o =>
 			{
-				return o.HandshakeSettings != null && o.SerializerOptions != null;
+				return o.Handshake != null && o.SerializerOptions != null;
 			});
 
 			if (configure != null)
