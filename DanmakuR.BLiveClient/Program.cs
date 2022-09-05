@@ -5,7 +5,6 @@ using DanmakuR.Protocol;
 using DanmakuR.Protocol.Model;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.Configuration;
 using System.Net;
 using static DanmakuR.BLiveClient.Configuration;
 var builder = WebApplication.CreateBuilder(args);
@@ -62,17 +61,12 @@ Listener listener = new(app.Services.GetRequiredService<ILogger<Listener>>(), cf
 // connection.BindListeners(listener);
 listener.BindToConnection(connection);
 
-
-Task? consoleExitTask = null;
-Console.CancelKeyPress += (s, a) => consoleExitTask = Disconnect(s, a);
-
-async Task Disconnect (object? sender, ConsoleCancelEventArgs eargs)
+CancellationTokenSource closing = new();
+Console.CancelKeyPress += (_, _) =>
 {
-	Console.WriteLine("已按下退出键，正在断开连接");
-	await connection.StopAsync();
-	await connection.DisposeAsync();
+	closing.Cancel();
+	Environment.Exit(0);// 搞不懂，不加这行不会退出
 };
-
 if (builder.Configuration.GetValue("PseudoServer", false))
 {
 	connection.HandshakeTimeout = TimeSpan.FromMinutes(5);
@@ -82,13 +76,17 @@ if (builder.Configuration.GetValue("PseudoServer", false))
 
 await connection.StartAsync();
 HubConnectionState state;
-while ((state = connection.State) != HubConnectionState.Disconnected && consoleExitTask != null)
+CancellationToken ct = closing.Token;
+while ((state = connection.State) != HubConnectionState.Disconnected)
 {
-	await Task.Delay(5000);
+	await Task.Delay(5000).ConfigureAwait(false);
 	app.Logger.LogInformation("连接状态: {state}", state);
+	ct.ThrowIfCancellationRequested();
 }
 
-if (consoleExitTask != null)
-	await consoleExitTask!;
+Console.WriteLine("已按下退出键，正在断开连接");
+closing.Cancel();
+closing.Dispose();
+await connection.StopAsync().ConfigureAwait(false);
 
 Console.WriteLine("已断开连接");

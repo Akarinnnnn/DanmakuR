@@ -7,4 +7,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DanmakuR.Protocol\DanmakuR.Protocol.csproj" />
+  </ItemGroup>
+
 </Project>

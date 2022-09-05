@@ -1,6 +1,10 @@
-﻿using Microsoft.AspNetCore.Connections;
+﻿using DanmakuR.Protocol;
+using Microsoft.AspNetCore.Connections;
+using Microsoft.AspNetCore.SignalR.Protocol;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +21,9 @@ builder.WebHost
 var app = builder.Build();
 var listenerFac = app.Services.GetRequiredService<IConnectionListenerFactory>();
 var listener = await listenerFac.BindAsync(new IPEndPoint(IPAddress.Loopback, 2243));
+
+app.Logger.LogInformation("已启动服务器，监听{}", listener.EndPoint);
+
 while (true)
 {
 	var ctx = await listener.AcceptAsync();
@@ -69,6 +76,7 @@ async Task SvHello(ConnectionContext ctx)
 
 	_ = SvKeepAlive(ctx);
 	_ = SvHandlePing(ctx);
+	_ = SvSendCommand(ctx);
 }
 
 async Task SvKeepAlive(ConnectionContext ctx)
@@ -88,6 +96,43 @@ async Task SvKeepAlive(ConnectionContext ctx)
 		ctx.Transport.Output.Write(pong_message);
 		await ctx.Transport.Output.FlushAsync();
 	}
+}
+
+async Task SvSendCommand(ConnectionContext ctx)
+{
+	var samples = Directory.GetFiles("sample");
+	byte[] header = new byte[16];
+	byte[] buffer = new byte[4096];
+
+	while (true)
+	{
+		await Task.Delay(Random.Shared.Next(100, 8000));
+		var selected = File.OpenRead(samples[Random.Shared.Next(samples.Length)]);
+		BuildHeader(header, unchecked((int)(selected.Length)), 0);
+
+		var output = ctx.Transport.Output;
+		output.Write(header);
+		while (selected.Position != selected.Length)
+		{
+			selected.Read(buffer, 0, buffer.Length);
+			await output.WriteAsync(buffer);
+		}
+		await output.FlushAsync();
+	}
+}
+
+void BuildHeader(Span<byte> header, int length, byte version)
+{
+	var target = MemoryMarshal.Cast<byte, int>(header);
+	if (BitConverter.IsLittleEndian)
+	{
+		target[0] = BinaryPrimitives.ReverseEndianness(length + 16);
+		header[5] = 16;
+		header[7] = version;
+		header[12] = 5; // opcode 5 cmd
+		header[15] = 0;// seq
+	}
+
 }
 
 async Task SvHandlePing(ConnectionContext ctx)
