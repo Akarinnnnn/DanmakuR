@@ -77,19 +77,7 @@ namespace DanmakuR.Connection
 		private EndPoint SelectEndpoint()
 		{
 			Debug.Assert(endpoints != null);
-			EndPoint result;
-			if (next_endpoint < endpoints.Count)
-			{
-				result = endpoints[next_endpoint];
-				next_endpoint++;
-				return result;
-			}
-			else
-			{
-				next_endpoint = 1;
-				return endpoints[0];
-			}
-
+			return endpoints[Random.Shared.Next(endpoints.Count)];
 		}
 
 		public async ValueTask<ConnectionContext> ConnectAsync(EndPoint endpoint, CancellationToken cancellationToken = default)
