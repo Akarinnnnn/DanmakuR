@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DanmakuR.Connection;
 
@@ -32,6 +33,8 @@ public class WrappedInstance<TService> : WrappedService<TService>
 	where TService : notnull
 {
 	private readonly object impl;
+
+	[RequiresUnreferencedCode("反射引用，见下方Wrap")]
 	public WrappedInstance(object impl)
 	{
 		this.impl = impl;
@@ -64,6 +67,7 @@ public static class WrappingServicesExtensions
 				{
 					var newImplType = wrapperImplType.MakeGenericType(beingWrappedType, sd.ImplementationType);
 					services.Add(new ServiceDescriptor(newServiceType, newImplType, sd.Lifetime));
+					services.Add(new ServiceDescriptor(sd.ImplementationType, sd.ImplementationType, sd.Lifetime));
 				}
 				else if (sd.ImplementationInstance != null)
 				{
@@ -72,8 +76,8 @@ public static class WrappingServicesExtensions
 				else if (sd.ImplementationFactory != null)
 				{
 					services.Add(new ServiceDescriptor(
-						newServiceType, (IServiceProvider sp) =>
-						Activator.CreateInstance(newServiceType, sd.ImplementationFactory(sp))!,
+						newServiceType, 
+						sp => Activator.CreateInstance(newServiceType, sd.ImplementationFactory(sp))!,
 						sd.Lifetime
 					));
 				}

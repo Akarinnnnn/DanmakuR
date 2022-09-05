@@ -95,7 +95,7 @@ namespace DanmakuR.Connection
 		public async ValueTask<ConnectionContext> ConnectAsync(EndPoint endpoint, CancellationToken cancellationToken = default)
 		{
 			ConnectionContext ctx;
-
+			string? connectionId = null;
 			if (endpoint is PlaceHoldingEndPoint)
 			{
 				if (endpoints == null)
@@ -125,6 +125,7 @@ namespace DanmakuR.Connection
 					{
 						hosts = negotiateResponse.data.host_list;
 						handshake.CdnToken = negotiateResponse.data.token;
+						connectionId = negotiateResponse.data.token;
 					}
 
 					hosts ??= Host.DefaultHosts;
@@ -170,6 +171,12 @@ namespace DanmakuR.Connection
 			};
 			var ctxRewrite = new RewriteHandshakeConnection(ctx, opts);
 			ctxRewrite.Start();
+			if (connectionId != null)
+			{
+				ctxRewrite.ConnectionId = connectionId;
+				ctx.ConnectionId = connectionId;
+			}
+
 			return ctxRewrite;
 		}
 	}
