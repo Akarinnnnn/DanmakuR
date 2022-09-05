@@ -1,6 +1,7 @@
 using DanmakuR;
 using DanmakuR.BLiveClient;
 using DanmakuR.Connection.Kestrel;
+using DanmakuR.Protocol;
 using DanmakuR.Protocol.Model;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -13,6 +14,7 @@ builder.Configuration.AddCommandLine(args, new Dictionary<string, string>
 	{ "-ps", SectionName + ":PseudoServer" },
 	{ "-rid", SectionName + ":RoomId" },
 	{ "-iep", SectionName + ":IPEndPoint" },
+	{ "-s", SectionName + ":ShortId" }
 });
 var app = builder.Build();
 
@@ -21,11 +23,14 @@ app.Configuration.Bind(SectionName, cfg);
 
 app.Logger.LogInformation("房号：{roomid}", cfg.RoomId);
 var connBuilder = new BLiveHubConnectionBuilder();
+
 connBuilder.WithRoomid(cfg.RoomId, x =>
 {
 	x.AcceptedPacketType = FrameVersion.Brotli;
-	x.Platform = $".NET {typeof(object).Assembly.GetName().Version}";
+	x.Platform = $".NET";
 });
+
+connBuilder.Services.Configure<BLiveOptions>(o => o.MightBeShortId = cfg.ShortId);
 
 if (cfg.PseudoServer)
 {
@@ -56,13 +61,16 @@ Listener listener = new(app.Services.GetRequiredService<ILogger<Listener>>(), cf
 
 // connection.BindListeners(listener);
 listener.BindToConnection(connection);
-// connection.HandshakeTimeout = TimeSpan.FromSeconds(5);
-// connection.KeepAliveInterval = TimeSpan.FromSeconds(35);
-Console.CancelKeyPress += async (sender, eargs) =>
+
+
+Task? consoleExitTask = null;
+Console.CancelKeyPress += (s, a) => consoleExitTask = Disconnect(s, a);
+
+async Task Disconnect (object? sender, ConsoleCancelEventArgs eargs)
 {
 	Console.WriteLine("已按下退出键，正在断开连接");
+	await connection.StopAsync();
 	await connection.DisposeAsync();
-	Console.WriteLine("已断开连接");
 };
 
 if (builder.Configuration.GetValue("PseudoServer", false))
@@ -74,10 +82,13 @@ if (builder.Configuration.GetValue("PseudoServer", false))
 
 await connection.StartAsync();
 HubConnectionState state;
-while ((state = connection.State) != HubConnectionState.Disconnected)
+while ((state = connection.State) != HubConnectionState.Disconnected && consoleExitTask != null)
 {
 	await Task.Delay(5000);
 	app.Logger.LogInformation("连接状态: {state}", state);
 }
+
+if (consoleExitTask != null)
+	await consoleExitTask!;
 
 Console.WriteLine("已断开连接");

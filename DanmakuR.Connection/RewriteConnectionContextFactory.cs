@@ -94,6 +94,7 @@ namespace DanmakuR.Connection
 
 					if (protocol_options.MightBeShortId)
 					{
+						// 这个api没了
 						var roomInitResponse = await httpClient.GetFromJsonAsync<ControllerResponse<RoomInitData>>(
 											$"https://api.live.bilibili.com/xlive/web-room/v1/index/mobileRoomInit?id={handshake.Roomid}",
 											NegotiateContext.Default.Options,
