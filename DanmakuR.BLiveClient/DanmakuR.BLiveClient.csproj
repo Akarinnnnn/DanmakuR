@@ -7,6 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DanmakuR.Connection.Kestrel\DanmakuR.Connection.Kestrel.csproj" />
+    <ProjectReference Include="..\DanmakuR.Connection\DanmakuR.Connection.csproj" />
     <ProjectReference Include="..\DanmakuR\DanmakuR.csproj" />
   </ItemGroup>
 

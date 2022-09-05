@@ -1,5 +1,6 @@
 using DanmakuR;
 using DanmakuR.BLiveClient;
+using DanmakuR.Connection.Kestrel;
 using DanmakuR.Protocol.Model;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
@@ -28,14 +29,12 @@ connBuilder.WithRoomid(cfg.RoomId, x =>
 
 if (cfg.PseudoServer)
 {
-	connBuilder.UseSocketTransport(_ => { })
-		.Services
+	connBuilder.Services.AddKestrelClientSocket()
 		.AddSingleton<EndPoint, IPEndPoint>(_ => new IPEndPoint(IPAddress.Loopback, 2243));
 }
 else if (cfg.IPEndPoint != null)
 {
-	connBuilder.UseSocketTransport(_ => { })
-		.Services
+	connBuilder.Services.AddKestrelClientSocket()
 		.AddSingleton<EndPoint, IPEndPoint>(_ => cfg.IPEndPoint);
 }
 else if (cfg.UriEndPoint != null)
@@ -49,12 +48,14 @@ else if (cfg.UriEndPoint != null)
 }
 else
 {
-	connBuilder.UseSocketTransport(_ => { });
+	connBuilder.Services.AddKestrelClientSocket();
 }
 
 var connection = connBuilder.Build();
 Listener listener = new(app.Services.GetRequiredService<ILogger<Listener>>(), cfg.RoomId);
-connection.BindListeners(listener);
+
+// connection.BindListeners(listener);
+listener.BindToConnection(connection);
 // connection.HandshakeTimeout = TimeSpan.FromSeconds(5);
 // connection.KeepAliveInterval = TimeSpan.FromSeconds(35);
 Console.CancelKeyPress += async (sender, eargs) =>

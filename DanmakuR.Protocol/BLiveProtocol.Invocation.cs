@@ -7,7 +7,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Internal;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Protocol;
-
+using System.Collections.Immutable;
 
 namespace DanmakuR.Protocol;
 
@@ -20,9 +20,10 @@ internal static class InvocationJsonHelper
 	internal static JsonEncodedText TextData = JsonEncodedText.Encode(NameData);
 }
 
+
 partial class BLiveProtocol
 {
-
+	private ImmutableDictionary<string, CommandBinder> binders;
 	/// <devdoc>
 	/// <summary>
 	/// 解析<see cref="OpCode.Message"/>数据包中的Json信息

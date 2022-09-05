@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Connections;
 using DanmakuR.Connection;
 using DanmakuR.Protocol;
 using DanmakuR.Protocol.Model;
-using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
 using System.Net;
 using Microsoft.AspNetCore.Http.Connections.Client;
 using System.Text.Json;
