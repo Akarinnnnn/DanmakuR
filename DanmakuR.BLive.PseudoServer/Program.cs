@@ -51,6 +51,7 @@ async Task SvHello(ConnectionContext ctx)
 	bool clHelloGot = false;
 	while (!clHelloGot)
 	{
+		app.Logger.LogInformation("客户端({remoteEndPoint})连接", ctx.RemoteEndPoint);
 		var input = ctx.Transport.Input;
 		var result = await input.ReadAsync();
 		var buffer = result.Buffer;
@@ -74,11 +75,23 @@ async Task SvHello(ConnectionContext ctx)
 	ctx.Transport.Output.Write(Encoding.UTF8.GetBytes(response));
 	await ctx.Transport.Output.FlushAsync();
 
-	_ = SvKeepAlive(ctx);
 	_ = SvHandlePing(ctx);
-	_ = SvSendCommand(ctx);
+	_ = SvTasks(ctx);
 }
 
+async Task SvTasks(ConnectionContext ctx)
+{
+	int shouldSendObjects = Random.Shared.Next();
+	while (true)
+	{
+		await SvKeepAlive(ctx);
+		await Task.Delay(5000);
+		if ((shouldSendObjects & 1) != 0)
+		{
+			await SvSendCommand(ctx);
+		}
+	}
+}
 async Task SvKeepAlive(ConnectionContext ctx)
 {
 	byte[] pong_message =
@@ -90,12 +103,10 @@ async Task SvKeepAlive(ConnectionContext ctx)
 			0, 0, 0, 0,
 			0, 0, 0, 250
 		};
-	while (true)
-	{
-		await Task.Delay(6000);
-		ctx.Transport.Output.Write(pong_message);
-		await ctx.Transport.Output.FlushAsync();
-	}
+	app.Logger.LogInformation("发送Ping");
+	await Task.Delay(6000);
+	ctx.Transport.Output.Write(pong_message);
+	await ctx.Transport.Output.FlushAsync();
 }
 
 async Task SvSendCommand(ConnectionContext ctx)
@@ -104,21 +115,19 @@ async Task SvSendCommand(ConnectionContext ctx)
 	byte[] header = new byte[16];
 	byte[] buffer = new byte[4096];
 
-	while (true)
-	{
-		await Task.Delay(Random.Shared.Next(100, 8000));
-		var selected = File.OpenRead(samples[Random.Shared.Next(samples.Length)]);
-		BuildHeader(header, unchecked((int)(selected.Length)), 0);
+	var selected = File.OpenRead(samples[Random.Shared.Next(samples.Length)]);
+	BuildHeader(header, unchecked((int)(selected.Length)), 0);
+	app.Logger.LogInformation("发送Ping");
 
-		var output = ctx.Transport.Output;
-		output.Write(header);
-		while (selected.Position != selected.Length)
-		{
-			selected.Read(buffer, 0, buffer.Length);
-			await output.WriteAsync(buffer);
-		}
-		await output.FlushAsync();
+	var output = ctx.Transport.Output;
+	output.Write(header);
+	while (selected.Position != selected.Length)
+	{
+		selected.Read(buffer, 0, buffer.Length);
+		await output.WriteAsync(buffer);
 	}
+	await output.FlushAsync();
+	await Task.Delay(Random.Shared.Next(100, 8000));
 }
 
 void BuildHeader(Span<byte> header, int length, byte version)

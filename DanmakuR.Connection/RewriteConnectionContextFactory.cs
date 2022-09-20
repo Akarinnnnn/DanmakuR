@@ -92,6 +92,18 @@ namespace DanmakuR.Connection
 
 					using HttpClient httpClient = new();
 
+					if (protocol_options.MightBeShortId)
+					{
+						// 频率过高会封ip
+						var roomInitResponse = await httpClient.GetFromJsonAsync<ControllerResponse<RoomInitData>>(
+											$"https://api.live.bilibili.com/xlive/web-room/v1/index/mobileRoomInit?id={handshake.Roomid}",
+											NegotiateContext.Default.Options,
+											cancellationToken);
+						if (roomInitResponse != null && roomInitResponse.IsValid)
+						{
+							handshake.Roomid = roomInitResponse.data.room_id;
+						}
+					}
 
 					var negotiateResponse = await httpClient.GetFromJsonAsync<ControllerResponse<DanmuInfoData>>(
 							$"https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?id={handshake.Roomid}",
@@ -114,10 +126,8 @@ namespace DanmakuR.Connection
 						_ => BuildWsEndPoints(hosts).ToList(),
 					};
 				}
-
 				endpoint = SelectEndpoint();
 			}
-
 			ctx = await basefac.ConnectAsync(endpoint, cancellationToken);
 			var opts = new HandshakeProxyConnectionOptions
 			{
