@@ -205,7 +205,7 @@ public partial class BLiveProtocol : IHubProtocol
 			switch (header.Version)
 			{
 				case FrameVersion.Deflate:
-					compressedPackage.DecompressDeflate(writer);
+					compressedPackage.DecompressZLib(writer);
 					break;
 				case FrameVersion.Brotli:
 					compressedPackage.DecompressBrotli(writer);

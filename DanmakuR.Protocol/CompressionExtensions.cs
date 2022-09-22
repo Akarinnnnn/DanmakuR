@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.IO.Pipelines;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -28,13 +30,12 @@ namespace DanmakuR.Protocol
 			}
 		}
 
-		public static void DecompressDeflate(in this ReadOnlySequence<byte> buffer, IBufferWriter<byte> output)
+		public static void DecompressZLib(in this ReadOnlySequence<byte> buffer, IBufferWriter<byte> output)
 		{
-			Stream src = PipeReader.Create(buffer).AsStream(true);
-			using DeflateStream decoder = new(src, CompressionMode.Decompress, false);
+			Stream src = PipeReader.Create(buffer.Slice(2)).AsStream(true);
+			using ZLibStream decoder = new(src, CompressionMode.Decompress, false);
 
-			using GZipStream gzDecoder = new(src, CompressionMode.Decompress, false);
-			ByStreamDecoder(output, gzDecoder);
+			ByStreamDecoder(output, decoder);
 		}
 
 		private static void ByStreamDecoder(IBufferWriter<byte> output, Stream decoder)
