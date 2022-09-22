@@ -17,7 +17,7 @@ namespace DanmakuR.Connection
 		private readonly BLiveOptions protocol_options;
 
 		private List<EndPoint>? endpoints;
-		private int next_endpoint = 0;
+		// private int next_endpoint = 0;
 
 		private IConnectionFactory basefac;
 
@@ -96,7 +96,7 @@ namespace DanmakuR.Connection
 					{
 						// 频率过高会封ip
 						var roomInitResponse = await httpClient.GetFromJsonAsync<ControllerResponse<RoomInitData>>(
-											$"https://api.live.bilibili.com/xlive/web-room/v1/index/mobileRoomInit?id={handshake.Roomid}",
+											$"https://api.live.bilibili.com/room/v1/Room/mobileRoomInit?id={handshake.Roomid}",
 											NegotiateContext.Default.Options,
 											cancellationToken);
 						if (roomInitResponse != null && roomInitResponse.IsValid)
