@@ -33,6 +33,12 @@ namespace DanmakuR.Protocol
 			Stream src = PipeReader.Create(buffer).AsStream(true);
 			using DeflateStream decoder = new(src, CompressionMode.Decompress, false);
 
+			using GZipStream gzDecoder = new(src, CompressionMode.Decompress, false);
+			ByStreamDecoder(output, gzDecoder);
+		}
+
+		private static void ByStreamDecoder(IBufferWriter<byte> output, Stream decoder)
+		{
 			int canDecompressMarker;
 
 			while ((canDecompressMarker = decoder.ReadByte()) != -1)

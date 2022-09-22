@@ -23,7 +23,7 @@ internal static class InvocationJsonHelper
 
 partial class BLiveProtocol
 {
-	private ImmutableDictionary<string, CommandBinder> binders;
+	// private ImmutableDictionary<string, CommandBinder> binders;
 	/// <devdoc>
 	/// <summary>
 	/// 解析<see cref="OpCode.Message"/>数据包中的Json信息
@@ -55,13 +55,33 @@ partial class BLiveProtocol
 				throw new InvalidDataException("缺少cmd属性");
 			}
 
-
-			msg = new InvocationMessage(OnMessageJsonDocument.Name, new object[] { cmdName, fullData });
+			IReadOnlyList<Type> cmdHandler = binder.GetParameterTypes(cmdName);
+			if (cmdHandler.Count > 0)
+			{
+				msg = new InvocationMessage(cmdName, new object[] { fullData });
+			}
+			else
+			{
+				msg = new InvocationMessage(OnMessageJsonDocument.Name, new object[] { cmdName, fullData });
+			}
 		}
-		catch (BindingFailureException ex)
+		catch (Exception ex)
 		{
 			msg = new InvocationBindingFailureMessage(null, ProtocolOnAggreatedMessage.Name, ExceptionDispatchInfo.Capture(ex));
+			// TODO: 可能不需要
+			while (reader.CurrentDepth != 0 || reader.TokenType == JsonTokenType.StartObject)
+			{
+				if (reader.TokenType == JsonTokenType.StartObject || reader.TokenType == JsonTokenType.StartArray)
+				{
+					reader.Skip();
+				}
+				else
+				{
+					reader.Read();
+				}
+			}
 		}
+
 		return reader.Position;
 	}
 }
