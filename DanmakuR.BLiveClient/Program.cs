@@ -13,7 +13,9 @@ builder.Configuration.AddCommandLine(args, new Dictionary<string, string>
 	{ "-ps", SectionName + ":PseudoServer" },
 	{ "-rid", SectionName + ":RoomId" },
 	{ "-iep", SectionName + ":IPEndPoint" },
-	{ "-s", SectionName + ":ShortId" }
+	{ "-url", SectionName + ":UrlEndpoint" },
+	{ "-s", SectionName + ":ShortId" },
+	{ "-v", SectionName + ":MaxVersion" }
 });
 var app = builder.Build();
 
@@ -27,6 +29,12 @@ connBuilder.WithRoomid(cfg.RoomId, x =>
 {
 	x.AcceptedPacketType = FrameVersion.Brotli;
 	x.Platform = $".NET";
+	x.AcceptedPacketType = cfg.MaxVersion switch
+	{
+		0 => FrameVersion.Json,
+		2 => FrameVersion.Deflate,
+		_ => FrameVersion.Brotli
+	};
 });
 
 connBuilder.Services.Configure<BLiveOptions>(o => o.MightBeShortId = cfg.ShortId);
@@ -67,21 +75,20 @@ Console.CancelKeyPress += (_, _) =>
 	closing.Cancel();
 	Environment.Exit(0);// 搞不懂，不加这行不会退出
 };
-if (builder.Configuration.GetValue("PseudoServer", false))
+if (!cfg.PseudoServer)
 {
 	connection.HandshakeTimeout = TimeSpan.FromMinutes(5);
 	connection.ServerTimeout = TimeSpan.FromMinutes(5);
-	connection.KeepAliveInterval = TimeSpan.FromSeconds(30);
+	connection.KeepAliveInterval = TimeSpan.FromSeconds(40);
 }
 
 await connection.StartAsync();
 HubConnectionState state;
 CancellationToken ct = closing.Token;
-while ((state = connection.State) != HubConnectionState.Disconnected)
+while ((state = connection.State) != HubConnectionState.Disconnected && !ct.IsCancellationRequested)
 {
 	await Task.Delay(5000).ConfigureAwait(false);
 	app.Logger.LogInformation("连接状态: {state}", state);
-	ct.ThrowIfCancellationRequested();
 }
 
 Console.WriteLine("已按下退出键，正在断开连接");
