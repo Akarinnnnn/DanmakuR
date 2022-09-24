@@ -102,7 +102,6 @@ public partial class BLiveProtocol : IHubProtocol
 				Debug.Assert(header.OpCode == OpCode.Message);
 				if (header.Version != FrameVersion.Json)
 				{
-					bool isBr = header.Version == FrameVersion.Brotli;
 					var holder = DecompressData(in header, payload);
 					input = input.Slice(header.FrameLength);
 
@@ -110,7 +109,6 @@ public partial class BLiveProtocol : IHubProtocol
 						this,
 						hubmessage_channel,
 						holder,
-						isBr,
 						binder
 					));
 				}

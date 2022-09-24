@@ -10,7 +10,6 @@ namespace DanmakuR.Protocol
 	{
 		private MemoryBufferWriter.WrittenSequence memory_holder;
 		private bool is_disposed;
-		public bool IsSequentialFrames { get; }
 		public IInvocationBinder Binder { get; }
 		public BLiveProtocol HubProtocol { get; }
 
@@ -21,13 +20,11 @@ namespace DanmakuR.Protocol
 		internal ParsingAggreatedMessageState(BLiveProtocol hubProtocol, 
 			ChannelWriter<HubMessage> writer, 
 			MemoryBufferWriter.WrittenSequence memoryHolder, 
-			bool isSequentialFrames,
 			IInvocationBinder binder)
 		{
 			HubProtocol = hubProtocol;
 			Writer = writer;
 			memory_holder = memoryHolder;
-			IsSequentialFrames = isSequentialFrames;
 			Binder = binder;
 		}
 
