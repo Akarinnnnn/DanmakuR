@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
 using System.Net;
 using static DanmakuR.BLiveClient.Configuration;
+
+CancellationTokenSource closing = new();
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddCommandLine(args, new Dictionary<string, string>
 {
@@ -62,38 +65,46 @@ else
 {
 	connBuilder.Services.AddKestrelClientSocket();
 }
-
+if (cfg.PseudoServer)
+{
+	connBuilder.WithAutomaticReconnect();
+}
 var connection = connBuilder.Build();
+Console.CancelKeyPress += async (_, eargs) =>
+{
+	Console.WriteLine("已按下退出键，正在断开连接");
+	await connection.StopAsync().ConfigureAwait(false);
+	Console.WriteLine("已断开连接");
+	closing.Cancel();
+};
 Listener listener = new(app.Services.GetRequiredService<ILogger<Listener>>(), cfg.RoomId);
 
 // connection.BindListeners(listener);
 listener.BindToConnection(connection);
 
-CancellationTokenSource closing = new();
-Console.CancelKeyPress += (_, _) =>
-{
-	closing.Cancel();
-	Environment.Exit(0);// 搞不懂，不加这行不会退出
-};
 if (!cfg.PseudoServer)
 {
-	connection.HandshakeTimeout = TimeSpan.FromMinutes(5);
-	connection.ServerTimeout = TimeSpan.FromMinutes(5);
+	connection.HandshakeTimeout = TimeSpan.FromMinutes(10);
+	connection.ServerTimeout = TimeSpan.FromMinutes(30);
 	connection.KeepAliveInterval = TimeSpan.FromSeconds(40);
+}
+else
+{
+	connection.HandshakeTimeout = TimeSpan.FromMinutes(6);
+	connection.ServerTimeout = TimeSpan.FromMinutes(60);
+	connection.KeepAliveInterval = TimeSpan.FromSeconds(20);
+
 }
 
 await connection.StartAsync();
 HubConnectionState state;
 CancellationToken ct = closing.Token;
-while ((state = connection.State) != HubConnectionState.Disconnected && !ct.IsCancellationRequested)
+
+await app.RunAsync(ct); // 取消框架任务
+
+while ((state = connection.State) != HubConnectionState.Disconnected)
 {
+	ct.ThrowIfCancellationRequested();
 	await Task.Delay(5000).ConfigureAwait(false);
 	app.Logger.LogInformation("连接状态: {state}", state);
 }
-
-Console.WriteLine("已按下退出键，正在断开连接");
-closing.Cancel();
-closing.Dispose();
-await connection.StopAsync().ConfigureAwait(false);
-
-Console.WriteLine("已断开连接");

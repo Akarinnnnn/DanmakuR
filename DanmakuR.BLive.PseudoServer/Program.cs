@@ -1,5 +1,4 @@
-﻿using DanmakuR.Protocol;
-using Microsoft.AspNetCore.Connections;
+﻿using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using System.Buffers;
 using System.Buffers.Binary;
@@ -23,6 +22,16 @@ var listenerFac = app.Services.GetRequiredService<IConnectionListenerFactory>();
 var listener = await listenerFac.BindAsync(new IPEndPoint(IPAddress.Loopback, 2243));
 
 app.Logger.LogInformation("已启动服务器，监听{}", listener.EndPoint);
+var samples = Directory.GetFiles("samples");
+
+_ = Task.Run(async () =>
+{
+	while (true)
+	{
+		await Task.Delay(10000);
+		app.Logger.LogInformation("服务器正在运行");
+	}
+});
 
 while (true)
 {
@@ -81,15 +90,10 @@ async Task SvHello(ConnectionContext ctx)
 
 async Task SvTasks(ConnectionContext ctx)
 {
-	int shouldSendObjects = Random.Shared.Next();
 	while (true)
 	{
 		await SvKeepAlive(ctx);
-		await Task.Delay(5000);
-		if ((shouldSendObjects & 1) != 0)
-		{
-			await SvSendCommand(ctx);
-		}
+		await SvSendCommand(ctx);
 	}
 }
 async Task SvKeepAlive(ConnectionContext ctx)
@@ -109,25 +113,25 @@ async Task SvKeepAlive(ConnectionContext ctx)
 	await ctx.Transport.Output.FlushAsync();
 }
 
+
 async Task SvSendCommand(ConnectionContext ctx)
 {
-	var samples = Directory.GetFiles("sample");
 	byte[] header = new byte[16];
 	byte[] buffer = new byte[4096];
 
 	var selected = File.OpenRead(samples[Random.Shared.Next(samples.Length)]);
 	BuildHeader(header, unchecked((int)(selected.Length)), 0);
-	app.Logger.LogInformation("发送Ping");
+	app.Logger.LogInformation("发送json");
 
 	var output = ctx.Transport.Output;
 	output.Write(header);
 	while (selected.Position != selected.Length)
 	{
-		selected.Read(buffer, 0, buffer.Length);
-		await output.WriteAsync(buffer);
+		int length = selected.Read(buffer, 0, buffer.Length);
+		await output.WriteAsync(buffer[..length]);
 	}
 	await output.FlushAsync();
-	await Task.Delay(Random.Shared.Next(100, 8000));
+	await Task.Delay(Random.Shared.Next(1000, 8000));
 }
 
 void BuildHeader(Span<byte> header, int length, byte version)
@@ -138,7 +142,7 @@ void BuildHeader(Span<byte> header, int length, byte version)
 		target[0] = BinaryPrimitives.ReverseEndianness(length + 16);
 		header[5] = 16;
 		header[7] = version;
-		header[12] = 5; // opcode 5 cmd
+		header[11] = 5; // opcode 5 cmd
 		header[15] = 0;// seq
 	}
 
