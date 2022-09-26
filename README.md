@@ -2,6 +2,7 @@
 通过`HubConnection`连接到b站直播间弹幕信息流，传输方式可以是`Websocket`或`TCP`之一。
 
 ## 快速上手
+首先，通过nuget查找并安装安装`DanmakuR`包。  
 
 ```csharp
 // 1. 创建`HubConnenction`    
