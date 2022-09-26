@@ -15,6 +15,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "怪东西", "怪东西", "{
 		.gitignore = .gitignore
 		Directory.Build.props = Directory.Build.props
 		LICENSE.txt = LICENSE.txt
+		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DanmakuR.Connection", "DanmakuR.Connection\DanmakuR.Connection.csproj", "{195F2E7D-7B8C-433F-BF3D-1714B0F591BF}"
@@ -39,7 +40,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DanmakuR.BLiveClient", "Dan
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DanmakuR.BLive.PseudoServer", "DanmakuR.BLive.PseudoServer\DanmakuR.BLive.PseudoServer.csproj", "{39A5D2BE-41CF-4ACA-8A4F-98FF2FB1163D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DanmakuR.Connection.Kestrel", "DanmakuR.Connection.Kestrel\DanmakuR.Connection.Kestrel.csproj", "{07315FF0-AB17-4A0C-A3B9-4515704B503C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DanmakuR.Connection.Kestrel", "DanmakuR.Connection.Kestrel\DanmakuR.Connection.Kestrel.csproj", "{07315FF0-AB17-4A0C-A3B9-4515704B503C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

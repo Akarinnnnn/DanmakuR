@@ -1,11 +1,9 @@
-﻿
-
-using Microsoft.AspNetCore.Connections;
+﻿using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices;
 
 namespace DanmakuR.Connection.Kestrel;
 
@@ -47,7 +45,7 @@ public class KestrelConnectionFactory : IDisposable
 						if (Environment.OSVersion.Platform != PlatformID.Win32NT)
 						{
 							var ipentry = await Dns.GetHostEntryAsync(dns.Host, cancellationToken);
-							await s.ConnectAsync(ipentry.AddressList, dns.Port, cancellationToken); 
+							await s.ConnectAsync(ipentry.AddressList, dns.Port, cancellationToken);
 						}
 						else
 						{

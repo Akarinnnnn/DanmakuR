@@ -8,6 +8,11 @@
 		<RepositoryBranch>master</RepositoryBranch>
 		<PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageTags>signalr;client;bilibili;live;websocket;socket</PackageTags>
 		<Authors>Fa_ge</Authors>
+		<Version>1.0.1</Version>
+		<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 	</PropertyGroup>
 </Project>
