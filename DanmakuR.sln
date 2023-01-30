@@ -22,6 +22,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DanmakuR.Connection", "Danm
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "参考资料", "参考资料", "{BD706D17-B6EA-4DB7-AFE5-338BFA6A7168}"
 	ProjectSection(SolutionItems) = preProject
+		ref\apis.txt = ref\apis.txt
 		ref\connection\command_types.ts = ref\connection\command_types.ts
 		ref\connection\connection.ts = ref\connection\connection.ts
 		ref\connection\constants.ts = ref\connection\constants.ts

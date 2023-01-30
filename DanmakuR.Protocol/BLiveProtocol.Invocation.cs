@@ -23,63 +23,54 @@ internal static class InvocationJsonHelper
 
 partial class BLiveProtocol
 {
-	// private ImmutableDictionary<string, CommandBinder> binders;
 	/// <devdoc>
 	/// <summary>
 	/// 解析<see cref="OpCode.Message"/>数据包中的Json信息
 	/// </summary>
 	/// <returns>单条json的最后一个标记位置</returns>
+	/// <remarks>
+	/// 先尝试绑定到已注册cmd的处理器，若未注册则转交给OnMessageJdonDocument，均未注册则抛出异常
+	/// </remarks>
 	/// </devdoc>
 	private SequencePosition ParseInvocation(Utf8JsonReader reader, IInvocationBinder binder, out HubMessage msg)
 	{
+		string? cmdName = null;
 		try
 		{
-			AssertMethodParamTypes(binder, ProtocolOnAggreatedMessage.Name, ProtocolOnAggreatedMessage.ParamTypes);
-			reader.CheckRead();
-			reader.EnsureObjectStart();
-			JsonDocument? fullData = null;
-			string? cmdName = null;
-			fullData = JsonDocument.ParseValue(ref reader);
+			// 
+			JsonDocument fullData = JsonDocument.ParseValue(ref reader);
+			cmdName = fullData.RootElement.GetProperty(TextCmd.EncodedUtf8Bytes).GetString()
+					?? throw new InvalidDataException("cmd为空");
+			
+			IReadOnlyList<Type> cmdHandlerArgs = binder.GetParameterTypes(cmdName);
 
-			try
+			if (cmdHandlerArgs.Count == 1) // 已注册对应cmd的处理器
 			{
-				cmdName = fullData.RootElement.GetProperty("cmd").GetString();
+				using (fullData)
+				{
+					msg = new InvocationMessage(cmdName, new object?[] { JsonSerializer.Deserialize(
+						fullData, cmdHandlerArgs[0], options.SerializerOptions)
+					});
+				}
 			}
-			catch (KeyNotFoundException ex)
+			else if(cmdHandlerArgs.Count == 0) // 未注册，转交给默认处理器
 			{
-				throw new InvalidDataException("缺少cmd属性", ex);
+				AssertMethodParamTypes(binder, ProtocolOnAggreatedMessage.Name, ProtocolOnAggreatedMessage.ParamTypes);
+				msg = new InvocationMessage(OnMessageJsonDocument.Name, new object?[] { cmdName, fullData });
 			}
-
-			if (cmdName == null)
+			else if(cmdHandlerArgs.Count > 1)
 			{
-				throw new InvalidDataException("缺少cmd属性");
-			}
-
-			IReadOnlyList<Type> cmdHandler = binder.GetParameterTypes(cmdName);
-			if (cmdHandler.Count > 0)
-			{
-				msg = new InvocationMessage(cmdName, new object[] { fullData });
+				throw new NotSupportedException();
 			}
 			else
 			{
-				msg = new InvocationMessage(OnMessageJsonDocument.Name, new object[] { cmdName, fullData });
+				throw new InvalidDataException("消息缺少cmd或其它问题");
 			}
 		}
 		catch (Exception ex)
 		{
-			msg = new InvocationBindingFailureMessage(null, ProtocolOnAggreatedMessage.Name, ExceptionDispatchInfo.Capture(ex));
-			// TODO: 可能不需要
-			while (reader.CurrentDepth != 0 || reader.TokenType == JsonTokenType.StartObject)
-			{
-				if (reader.TokenType == JsonTokenType.StartObject || reader.TokenType == JsonTokenType.StartArray)
-				{
-					reader.Skip();
-				}
-				else
-				{
-					reader.Read();
-				}
-			}
+			msg = new InvocationBindingFailureMessage(null, cmdName ?? OnMessageJsonDocument.Name, ExceptionDispatchInfo.Capture(ex));
+			return default;
 		}
 
 		return reader.Position;

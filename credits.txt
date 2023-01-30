@@ -1,2 +1,3 @@
 ﻿https://github.com/simon300000/bilibili-live-ws
 https://github.com/lovelyyoshino/Bilibili-Live-API/blob/master/API.WebSocket.md
+https://github.com/HMBSbige/BilibiliLiveRecordDownLoader/blob/39638c323c35a9ac6b71da42048a6aa65a176d4b/BilibiliLiveRecordDownLoader.BilibiliApi/Clients/RoomInfoApi.cs
