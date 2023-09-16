@@ -21,7 +21,7 @@ namespace DanmakuR.Protocol;
 
 public partial class BLiveProtocol : IHubProtocol
 {
-	private readonly BLiveOptions options;
+	private readonly IOptionsMonitor<BLiveOptions> optionsMonitor;
 	private readonly ILogger logger;
 
 	public string Name => ProtocolName;
@@ -42,9 +42,9 @@ public partial class BLiveProtocol : IHubProtocol
 	/// </summary>
 	/// <param name="opt"></param>
 	/// <remarks>还是建议使用<see cref="Microsoft.Extensions.DependencyInjection"/>而不是直接<see langword="new"/>一个</remarks>
-	public BLiveProtocol(IOptions<BLiveOptions> opt, ILoggerFactory loggerFactory)
+	public BLiveProtocol(IOptionsMonitor<BLiveOptions> opt, ILoggerFactory loggerFactory)
 	{
-		options = opt.Value;
+		optionsMonitor = opt;
 		logger = loggerFactory.CreateLogger<BLiveProtocol>();
 	}
 
@@ -263,7 +263,6 @@ public partial class BLiveProtocol : IHubProtocol
 		}
 	}
 
-	[SuppressMessage("Performance", "CA1822:将成员标记为 static", Justification = "也没写完")]
 	private void WriteMessageCore(HubMessage message, MemoryBufferWriter temp, ref FrameHeader header)
 	{
 		switch (message)

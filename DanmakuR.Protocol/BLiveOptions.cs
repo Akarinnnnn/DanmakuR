@@ -19,12 +19,13 @@ namespace DanmakuR.Protocol
 		/// <summary>
 		/// 收到（<see cref="string"/>）指定的cmd时，调用的解析函数。返回值将送到事先注册的回调函数
 		/// </summary>
+		/// <remarks>目前不使用</remarks>
 		public Dictionary<string, CommandBinder> CommandBinders { get; set; } = new();
 		public TransportTypes TransportType { get; set; } = TransportTypes.InsecureWebsocket;
 		public JsonReaderOptions ReaderOptions { get; set; } = new();
 		/// <summary>
 		/// 房号可能是短号
 		/// </summary>
-		public bool MightBeShortId { get; set; } = false;
+		public bool MightBeShortId { get; set; } = true;
 	}
 }

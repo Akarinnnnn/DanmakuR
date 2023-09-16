@@ -49,7 +49,7 @@ partial class BLiveProtocol
 				using (fullData)
 				{
 					msg = new InvocationMessage(cmdName, new object?[] { JsonSerializer.Deserialize(
-						fullData, cmdHandlerArgs[0], options.SerializerOptions)
+						fullData, cmdHandlerArgs[0], optionsMonitor.CurrentValue.SerializerOptions)
 					});
 				}
 			}
