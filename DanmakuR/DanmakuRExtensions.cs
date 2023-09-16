@@ -11,6 +11,7 @@ using DanmakuR.Protocol.Model;
 using System.Net;
 using Microsoft.AspNetCore.Http.Connections.Client;
 using System.Text.Json;
+using System.ComponentModel;
 
 namespace DanmakuR
 {
@@ -57,7 +58,8 @@ namespace DanmakuR
 			return builder;
 		}
 
-		[Obsolete]
+		[Obsolete("这个用法可能引起误会")]
+		[EditorBrowsable(EditorBrowsableState.Never)]
 		public static HubConnection BindListeners(this HubConnection connection, IDanmakuSource listener)
 		{
 			connection.On(WellKnownMethods.OnPopularity.Name, new Func<int, Task>(listener.OnPopularityAsync));
