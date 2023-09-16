@@ -26,12 +26,6 @@ class Listener : IDanmakuSource
 		{
 			// ...
 		}
-
-	}
-
-	public async Task OnPopularityAsync(int popularity)
-	{
-		// 气人值
 	}
 }
 

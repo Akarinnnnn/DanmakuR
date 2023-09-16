@@ -11,6 +11,7 @@ namespace DanmakuR
 	public interface IDanmakuSource
 	{
 		// public void OnMessage(JsonEncodedText message);
+		[Obsolete("人气值已废弃")]
 		public Task OnPopularityAsync(int popularity);
 		public Task OnMessageJsonDocumentAsync(string messageName, JsonDocument message);
 		// public void OnMessage(string messageName, Utf8JsonReader reader);

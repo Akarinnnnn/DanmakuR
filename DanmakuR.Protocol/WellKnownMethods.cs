@@ -16,6 +16,7 @@ namespace DanmakuR.Protocol
 			}
 		}
 
+		[Obsolete("人气值已废弃")]
 		public static readonly MethodDefination OnPopularity = new(
 			nameof(OnPopularity),
 			new[] { typeof(int) }

@@ -68,7 +68,6 @@ namespace DanmakuR
 
 		public static void BindToConnection(this IDanmakuSource listener, HubConnection connection)
 		{
-			connection.On(WellKnownMethods.OnPopularity.Name, new Func<int, Task>(listener.OnPopularityAsync));
 			connection.On(WellKnownMethods.OnMessageJsonDocument.Name, new Func<string, JsonDocument, Task>(listener.OnMessageJsonDocumentAsync));
 		}
 	}
