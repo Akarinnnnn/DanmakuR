@@ -30,7 +30,6 @@ var connBuilder = new BLiveHubConnectionBuilder();
 
 connBuilder.WithRoomid(cfg.RoomId, x =>
 {
-	x.AcceptedPacketType = FrameVersion.Brotli;
 	x.Platform = $".NET";
 	x.AcceptedPacketType = cfg.MaxVersion switch
 	{
@@ -44,12 +43,12 @@ connBuilder.Services.Configure<BLiveOptions>(o => o.MightBeShortId = cfg.ShortId
 
 if (cfg.PseudoServer)
 {
-	connBuilder.Services.AddKestrelClientSocket()
+	connBuilder.Services.AddKestrelClientSocket(ServiceLifetime.Singleton)
 		.AddSingleton<EndPoint, IPEndPoint>(_ => new IPEndPoint(IPAddress.Loopback, 2243));
 }
 else if (cfg.IPEndPoint != null)
 {
-	connBuilder.Services.AddKestrelClientSocket()
+	connBuilder.Services.AddKestrelClientSocket(ServiceLifetime.Singleton)
 		.AddSingleton<EndPoint, IPEndPoint>(_ => cfg.IPEndPoint);
 }
 else if (cfg.UriEndPoint != null)
@@ -63,7 +62,7 @@ else if (cfg.UriEndPoint != null)
 }
 else
 {
-	connBuilder.Services.AddKestrelClientSocket();
+	connBuilder.Services.AddKestrelClientSocket(ServiceLifetime.Singleton);
 }
 if (cfg.PseudoServer)
 {

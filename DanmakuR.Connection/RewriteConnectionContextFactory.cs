@@ -13,20 +13,35 @@ namespace DanmakuR.Connection
 	public class RewriteConnectionContextFactory : IConnectionFactory
 	{
 		private readonly IHandshakeProtocol protocol;
+		private readonly ChangeTokenSource changeTokenSource;
 		private readonly Handshake2 handshake;
 		private readonly BLiveOptions protocol_options;
 
 		private List<EndPoint>? endpoints;
 		// private int next_endpoint = 0;
 
-		private IConnectionFactory basefac;
+		private readonly IConnectionFactory basefac;
 
-		public RewriteConnectionContextFactory(IHandshakeProtocol protocol, WrappedService<IConnectionFactory> service, IOptions<BLiveOptions> options)
+		public RewriteConnectionContextFactory(IHandshakeProtocol protocol,
+			WrappedService<IConnectionFactory> service,
+			IOptions<BLiveOptions> options,
+			IEnumerable<IOptionsChangeTokenSource<BLiveOptions>> changeTokenSources)
 		{
 			protocol_options = options.Value;
 			handshake = protocol_options.Handshake;
 			basefac = service.GetRequiredService();
 			this.protocol = protocol;
+			foreach (var changeTokenSource in changeTokenSources)
+			{
+				if (changeTokenSource is ChangeTokenSource s)
+				{
+					this.changeTokenSource = s;
+					break;
+				}
+			}
+
+			if (changeTokenSource == null)
+				throw new InvalidOperationException($"必须注入{nameof(ChangeTokenSource)}。");
 		}
 
 		private static IEnumerable<EndPoint> BuildWsEndPoints(Host[] hosts)
@@ -102,6 +117,7 @@ namespace DanmakuR.Connection
 						if (roomInitResponse != null && roomInitResponse.IsValid)
 						{
 							handshake.Roomid = roomInitResponse.data.room_id;
+							changeTokenSource.Changed();
 						}
 					}
 
@@ -115,6 +131,7 @@ namespace DanmakuR.Connection
 						hosts = negotiateResponse.data.host_list;
 						handshake.CdnToken = negotiateResponse.data.token;
 						connectionId = negotiateResponse.data.token;
+						changeTokenSource.Changed();
 					}
 
 					hosts ??= Host.DefaultHosts;
