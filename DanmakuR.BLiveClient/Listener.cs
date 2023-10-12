@@ -30,11 +30,12 @@ namespace DanmakuR.BLiveClient
 
 		public async Task OnMessageJsonDocumentAsync(string cmdName, JsonDocument message)
 		{
+			using var _ = message;
 			ulong currentId = Interlocked.Increment(ref msgid);
 			int msgHashcode = message.GetHashCode();
 			logger.LogInformation("{currentId}-{cmdName}-{msgHashcode}", cmdName, currentId, msgHashcode);
+
 			using var stream = File.OpenWrite(Path.Combine(basepath, $"{currentId}-{cmdName}.json"));
-			//var stream = Stream.Null;
 			await JsonSerializer.SerializeAsync(stream, message, serializerOptions);
 			logger.LogInformation("{currentId}-{cmdName}-{msgHashcode} 保存完成", cmdName, currentId, msgHashcode);
 		}

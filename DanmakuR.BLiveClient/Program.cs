@@ -8,18 +8,23 @@ using Microsoft.AspNetCore.SignalR.Client;
 using System.Net;
 using static DanmakuR.BLiveClient.Configuration;
 
-CancellationTokenSource closing = new();
+using CancellationTokenSource closing = new();
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddCommandLine(args, new Dictionary<string, string>
+
+if ("true".Equals(builder.Configuration["UsingCmdlineArgs"], StringComparison.OrdinalIgnoreCase))
 {
-	{ "-ps", SectionName + ":PseudoServer" },
-	{ "-rid", SectionName + ":RoomId" },
-	{ "-iep", SectionName + ":IPEndPoint" },
-	{ "-url", SectionName + ":UrlEndpoint" },
-	{ "-s", SectionName + ":ShortId" },
-	{ "-v", SectionName + ":MaxVersion" }
-});
+		builder.Configuration.AddCommandLine(args, new Dictionary<string, string>
+	{
+		{ "-ps", SectionName + ":PseudoServer" },
+		{ "-rid", SectionName + ":RoomId" },
+		{ "-iep", SectionName + ":IPEndPoint" },
+		{ "-url", SectionName + ":UrlEndpoint" },
+		{ "-s", SectionName + ":ShortId" },
+		{ "-v", SectionName + ":MaxVersion" }
+	});
+}
+
 var app = builder.Build();
 
 var cfg = new Configuration();
@@ -44,12 +49,12 @@ connBuilder.Services.Configure<BLiveOptions>(o => o.MightBeShortId = cfg.ShortId
 
 if (cfg.PseudoServer)
 {
-	connBuilder.Services.AddKestrelClientSocket()
+	connBuilder.Services.AddKestrelClientSocket(ServiceLifetime.Singleton)
 		.AddSingleton<EndPoint, IPEndPoint>(_ => new IPEndPoint(IPAddress.Loopback, 2243));
 }
 else if (cfg.IPEndPoint != null)
 {
-	connBuilder.Services.AddKestrelClientSocket()
+	connBuilder.Services.AddKestrelClientSocket(ServiceLifetime.Singleton)
 		.AddSingleton<EndPoint, IPEndPoint>(_ => cfg.IPEndPoint);
 }
 else if (cfg.UriEndPoint != null)
@@ -63,7 +68,7 @@ else if (cfg.UriEndPoint != null)
 }
 else
 {
-	connBuilder.Services.AddKestrelClientSocket();
+	connBuilder.Services.AddKestrelClientSocket(ServiceLifetime.Singleton);
 }
 if (cfg.PseudoServer)
 {
