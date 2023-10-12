@@ -48,6 +48,14 @@ namespace DanmakuR.Protocol.Model
 		[JsonPropertyName("key")]
 		public string? CdnToken = null;
 
+		/// <summary>
+		/// buvid3
+		/// </summary>
+		/// <remarks>
+		/// 可从cookie中提取，也许用在了验证是否登录上
+		/// </remarks>
+		public string? Buvid3 = null;
+
 		public long? Aid;
 		public long? From = null;
 

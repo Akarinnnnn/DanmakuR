@@ -37,7 +37,7 @@ public struct Host
 	public int wss_port { get; set; }
 	public int ws_port { get; set; }
 
-	public static readonly Host[] DefaultHosts = { new("broadcastlv.chat.bilibili.com", 2243, 443, 2244) };
+	public static readonly IReadOnlyList<Host> DefaultHosts = new Host[]{ new("broadcastlv.chat.bilibili.com", 2243, 443, 2244) };
 }
 
 
