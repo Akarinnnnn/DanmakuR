@@ -26,7 +26,7 @@ public partial class BLiveProtocol : IHubProtocol
 
 	public string Name => ProtocolName;
 
-	/// <remarks>SignalR HubProtocol版本1，不是FrameVersion</remarks>
+	/// <remarks>SignalR HubProtocol版本1，不是FrameVersion。此属性影响HubConnection兼容性。</remarks>
 	public int Version => 1;
 	public TransferFormat TransferFormat => TransferFormat.Binary;
 
@@ -85,14 +85,7 @@ public partial class BLiveProtocol : IHubProtocol
 		{
 			if (header.Version == FrameVersion.Int32BE || header.OpCode == OpCode.Pong)
 			{
-				// 收到int32气人值
-				if (payload.Length < 4)
-				{
-					return InsufficientDataToParse(out message);
-				}
-
-				int value = ParsePongValue(in payload);
-				message = MakePongMessage(binder, value);
+				message = PingMessage.Instance;
 				input = input.Slice(header.FrameLength);
 				return true;
 			}
@@ -180,20 +173,6 @@ public partial class BLiveProtocol : IHubProtocol
 		}
 
 		return value;
-	}
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	private static HubMessage MakePongMessage(IInvocationBinder binder, int value)
-	{
-		try
-		{
-			AssertMethodParamTypes(binder, nameof(WellKnownMethods.OnPopularity), WellKnownMethods.OnPopularity.ParamTypes);
-			return new InvocationMessage(nameof(WellKnownMethods.OnPopularity), new object[] { value });
-		}
-		catch (BindingFailureException ex)
-		{
-			return new InvocationBindingFailureMessage(null, WellKnownMethods.OnPopularity.Name, ExceptionDispatchInfo.Capture(ex));
-		}
 	}
 
 	private static MemoryBufferWriter.WrittenSequence DecompressData(in FrameHeader header, in ReadOnlySequence<byte> compressedPackage)
