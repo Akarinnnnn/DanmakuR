@@ -26,7 +26,8 @@ public partial class BLiveProtocol : IHubProtocol
 
 	public string Name => ProtocolName;
 
-	public int Version => SupportedProtocolVersion;
+	/// <remarks>SignalR HubProtocol版本1，不是FrameVersion</remarks>
+	public int Version => 1;
 	public TransferFormat TransferFormat => TransferFormat.Binary;
 
 	private static readonly UnboundedChannelOptions channel_options = new()
