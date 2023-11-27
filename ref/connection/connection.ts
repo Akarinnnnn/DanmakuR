@@ -62,6 +62,7 @@ type HandshakeBase = {
 	protover: number;
 	aid?: number;
 	from?: number;
+	buvid3: string;
 };
 
 interface Message {
