@@ -7,13 +7,13 @@ using Microsoft.Extensions.Options;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 
 namespace DanmakuR.Connection
 {
 	public class RewriteConnectionContextFactory : IConnectionFactory
 	{
 		private readonly IHandshakeProtocol protocol;
-		private readonly ChangeTokenSource changeTokenSource;
 		private readonly Handshake2 handshake;
 		private readonly BLiveOptions protocol_options;
 
@@ -24,27 +24,15 @@ namespace DanmakuR.Connection
 
 		public RewriteConnectionContextFactory(IHandshakeProtocol protocol,
 			WrappedService<IConnectionFactory> service,
-			IOptions<BLiveOptions> options,
-			IEnumerable<IOptionsChangeTokenSource<BLiveOptions>> changeTokenSources)
+			IOptions<BLiveOptions> options)
 		{
 			protocol_options = options.Value;
 			handshake = protocol_options.Handshake;
 			basefac = service.GetRequiredService();
 			this.protocol = protocol;
-			foreach (var changeTokenSource in changeTokenSources)
-			{
-				if (changeTokenSource is ChangeTokenSource s)
-				{
-					this.changeTokenSource = s;
-					break;
-				}
-			}
-
-			if (changeTokenSource == null)
-				throw new InvalidOperationException($"必须注入{nameof(ChangeTokenSource)}。");
 		}
 
-		private static IEnumerable<EndPoint> BuildWsEndPoints(Host[] hosts)
+		private static IEnumerable<EndPoint> BuildWsEndPoints(IReadOnlyList<Host> hosts)
 		{
 			var builder = new UriBuilder(Uri.UriSchemeWs);
 			foreach (Host host in hosts)
@@ -55,7 +43,7 @@ namespace DanmakuR.Connection
 			}
 		}
 
-		private static IEnumerable<EndPoint> BuildWssEndPoints(Host[] hosts)
+		private static IEnumerable<EndPoint> BuildWssEndPoints(IReadOnlyList<Host> hosts)
 		{
 			var builder = new UriBuilder(Uri.UriSchemeWss);
 			foreach (Host host in hosts)
@@ -66,21 +54,22 @@ namespace DanmakuR.Connection
 			}
 		}
 
-		private static async ValueTask<List<EndPoint>> BuildIpEndPointsAsync(Host[] hosts, CancellationToken cancellationToken)
+		private static async ValueTask<List<EndPoint>> BuildIpEndPointsAsync(IReadOnlyList<Host> hosts, CancellationToken cancellationToken)
 		{
-			List<EndPoint> endpoints = new(hosts.Length);
+			List<EndPoint> endpoints = new(hosts.Count);
 
 			// 没有ToListAsync，干脆包两层吧
-			await foreach (var ent in BuildListAsync())
+			await foreach (var ent in BuildListAsync(hosts, cancellationToken))
 				endpoints.Add(ent);
 
 			return endpoints;
 
-			async IAsyncEnumerable<IPEndPoint> BuildListAsync()
+			static async IAsyncEnumerable<IPEndPoint> BuildListAsync(IReadOnlyList<Host> hosts, 
+				[EnumeratorCancellation] CancellationToken ctInner)
 			{
 				foreach (Host host in hosts)
 				{
-					IPAddress[] iplist = await Dns.GetHostAddressesAsync(host.host, cancellationToken);
+					IPAddress[] iplist = await Dns.GetHostAddressesAsync(host.host, ctInner);
 					foreach (var ip in iplist)
 					{
 						yield return new IPEndPoint(ip, host.port);
@@ -103,7 +92,7 @@ namespace DanmakuR.Connection
 			{
 				if (endpoints == null)
 				{
-					Host[]? hosts = null;
+					IReadOnlyList<Host>? hosts = null;
 
 					using HttpClient httpClient = new();
 
@@ -117,7 +106,6 @@ namespace DanmakuR.Connection
 						if (roomInitResponse != null && roomInitResponse.IsValid)
 						{
 							handshake.Roomid = roomInitResponse.data.room_id;
-							changeTokenSource.Changed();
 						}
 					}
 
@@ -131,7 +119,6 @@ namespace DanmakuR.Connection
 						hosts = negotiateResponse.data.host_list;
 						handshake.CdnToken = negotiateResponse.data.token;
 						connectionId = negotiateResponse.data.token;
-						changeTokenSource.Changed();
 					}
 
 					hosts ??= Host.DefaultHosts;
@@ -142,8 +129,13 @@ namespace DanmakuR.Connection
 						TransportTypes.RawSocket => await BuildIpEndPointsAsync(hosts, cancellationToken),
 						_ => BuildWsEndPoints(hosts).ToList(),
 					};
+
+					endpoint = endpoints[0];
 				}
-				endpoint = SelectEndpoint();
+				else
+				{
+					endpoint = SelectEndpoint();
+				}
 			}
 			ctx = await basefac.ConnectAsync(endpoint, cancellationToken);
 			var opts = new HandshakeProxyConnectionOptions

@@ -78,7 +78,7 @@ namespace DanmakuR.HandshakeProxy
 				{
 					originalTransport.Input.AdvanceTo(consumed, buffer.End);
 					RewriteApplication.Output.Complete(ex);
-					break;
+					throw;
 				}
 			} while (!handled);
 		}
@@ -110,7 +110,7 @@ namespace DanmakuR.HandshakeProxy
 				{
 					RewriteApplication.Input.AdvanceTo(result.Buffer.Start, result.Buffer.End);
 					originalTransport.Output.Complete(ex);
-					break;
+					throw;
 				}
 			} while (!handled);
 		}
@@ -135,10 +135,6 @@ namespace DanmakuR.HandshakeProxy
 
 				Debug.Assert(sendTask != null);
 				await sendTask; 
-			}
-			catch
-			{
-
 			}
 			finally
 			{

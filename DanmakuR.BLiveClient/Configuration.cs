@@ -14,5 +14,7 @@ namespace DanmakuR.BLiveClient
 
 		public bool PseudoServer { get; set; } = false;
 		public int MaxVersion { get; set; } = 3;
+
+		public string? Buvid3 { get; set; }
 	}
 }

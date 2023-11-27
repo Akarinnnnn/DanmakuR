@@ -12,6 +12,7 @@ using System.Net;
 using Microsoft.AspNetCore.Http.Connections.Client;
 using System.Text.Json;
 using System.ComponentModel;
+using Microsoft.Extensions.Options;
 
 namespace DanmakuR
 {

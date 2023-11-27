@@ -87,7 +87,7 @@ public class BLiveHandshakeProtocol : IHandshakeProtocol
 	private void WriteRequestMessageCore(HandshakeRequestMessage m, MemoryBufferWriter temp, ref FrameHeader header)
 	{
 
-		if (m.Protocol == ProtocolName && m.Version == SupportedProtocolVersion)
+		if (m.Protocol == ProtocolName && m.Version == 1)
 		{
 			hs2.Serialize(temp);
 			header.OpCode = OpCode.ConnectAndAuth;

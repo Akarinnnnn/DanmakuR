@@ -21,7 +21,8 @@ if ("true".Equals(builder.Configuration["UsingCmdlineArgs"], StringComparison.Or
 		{ "-iep", SectionName + ":IPEndPoint" },
 		{ "-url", SectionName + ":UrlEndpoint" },
 		{ "-s", SectionName + ":ShortId" },
-		{ "-v", SectionName + ":MaxVersion" }
+		{ "-v", SectionName + ":MaxVersion" },
+		{ "-buvid3", SectionName + ":Buvid3" }
 	});
 }
 
@@ -44,7 +45,17 @@ connBuilder.WithRoomid(cfg.RoomId, x =>
 	};
 });
 
-connBuilder.Services.Configure<BLiveOptions>(o => o.MightBeShortId = cfg.ShortId);
+connBuilder.Services.Configure<BLiveOptions>(o =>
+{
+	o.MightBeShortId = cfg.ShortId;
+
+	if (cfg.Buvid3 != null)
+	{
+		app.Logger.LogInformation("“—…Ë÷√µ«¬ºÃ¨-{buvid3}", cfg.Buvid3);
+		o.Handshake.Buvid = cfg.Buvid3;
+	}
+});
+
 
 if (cfg.PseudoServer)
 {
