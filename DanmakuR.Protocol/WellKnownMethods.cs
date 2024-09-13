@@ -32,7 +32,7 @@ namespace DanmakuR.Protocol
 		/// </summary>
 		public static readonly MethodDefination ProtocolOnAggreatedMessage = new(
 			"bliveInternal_ProtocolOnAggreatedMessage",
-			new[] { typeof(ParsingAggreatedMessageState) }
+			new[] { typeof(ParsingAggregatedMessageState) }
 		);
 	}
 }

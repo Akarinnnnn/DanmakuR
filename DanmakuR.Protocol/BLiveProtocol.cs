@@ -2,6 +2,7 @@
 using DanmakuR.Protocol.Model;
 using DanmakuR.Protocol.Resources;
 using Microsoft.AspNetCore.Connections;
+using Microsoft.AspNetCore.Internal;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,6 @@ using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using System.Threading.Channels;
 using static DanmakuR.Protocol.BLiveMessageParser;
-using MemoryBufferWriter = DanmakuR.Protocol.Buffer.Writers.MemoryBufferWriter;
 
 namespace DanmakuR.Protocol;
 
@@ -99,10 +99,10 @@ public partial class BLiveProtocol : IHubProtocol
 					var holder = DecompressData(in header, payload);
 					input = input.Slice(header.FrameLength);
 
-					return BindAggreatedMessage(binder, out message, new(
+					return BindAggregatedMessage(binder, out message, new(
 						this,
 						hubmessage_channel,
-						holder,
+						new(holder),
 						binder
 					));
 				}
@@ -127,12 +127,12 @@ public partial class BLiveProtocol : IHubProtocol
 		}
 	}
 
-	private static bool BindAggreatedMessage(IInvocationBinder binder, out HubMessage message, ParsingAggreatedMessageState state)
+	private static bool BindAggregatedMessage(IInvocationBinder binder, out HubMessage message, ParsingAggregatedMessageState state)
 	{
 		try
 		{
 			AssertMethodParamTypes(binder, WellKnownMethods.ProtocolOnAggreatedMessage.Name, WellKnownMethods.ProtocolOnAggreatedMessage.ParamTypes);
-			message = new InvocationMessage(WellKnownMethods.ProtocolOnAggreatedMessage.Name, new object[] { state });
+			message = new InvocationMessage(WellKnownMethods.ProtocolOnAggreatedMessage.Name, [state]);
 		}
 		catch (BindingFailureException ex)
 		{
@@ -175,7 +175,7 @@ public partial class BLiveProtocol : IHubProtocol
 		return value;
 	}
 
-	private static MemoryBufferWriter.WrittenSequence DecompressData(in FrameHeader header, in ReadOnlySequence<byte> compressedPackage)
+	private static MemoryBufferWriter.WrittenBuffers DecompressData(in FrameHeader header, in ReadOnlySequence<byte> compressedPackage)
 	{
 		var writer = MemoryBufferWriter.Get();
 		try
@@ -192,7 +192,7 @@ public partial class BLiveProtocol : IHubProtocol
 					throw new InvalidDataException(string.Format(SR.Unreconized_Compression, header._version));
 			}
 
-			return writer.DeatchToSequence();
+			return writer.DetachAndReset();
 		}
 		finally
 		{

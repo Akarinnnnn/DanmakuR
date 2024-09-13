@@ -54,7 +54,7 @@ namespace DanmakuR
 			var connection = provider.GetRequiredService<HubConnection>();
 
 			connection.On(WellKnownMethods.ProtocolOnAggreatedMessage.Name, 
-				new Func<ParsingAggreatedMessageState, Task>(BLiveProtocol.HandleAggreatedMessages));
+				new Func<ParsingAggregatedMessageState, Task>(BLiveProtocol.HandleAggreatedMessages));
 
 			isBuilt = true;
 

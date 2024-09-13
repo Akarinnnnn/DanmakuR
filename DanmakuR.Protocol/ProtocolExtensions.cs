@@ -52,7 +52,7 @@ public static class ProtocolExtensions
 		{
 			// o.SerializerOptions ??= new(System.Text.Json.JsonSerializerDefaults.General);
 			o.SerializerOptions.Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping;
-			o.SerializerOptions.AddContext<HandshakeJsonContext>();
+			o.SerializerOptions.TypeInfoResolverChain.Insert(0, HandshakeJsonContext.Default);
 		})
 		.Validate(o =>
 		{

@@ -1,4 +1,5 @@
-﻿using DanmakuR.Protocol.Buffer.Writers;
+﻿using DanmakuR.Protocol.Buffer;
+using Microsoft.AspNetCore.Internal;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using System.Buffers;
@@ -6,20 +7,20 @@ using System.Threading.Channels;
 
 namespace DanmakuR.Protocol
 {
-	public sealed class ParsingAggreatedMessageState : IDisposable
+	public sealed class ParsingAggregatedMessageState : IDisposable
 	{
-		private MemoryBufferWriter.WrittenSequence memory_holder;
+		private TransferrableMemoryBuffer? memory_holder;
 		private bool is_disposed;
 		public IInvocationBinder Binder { get; }
 		public BLiveProtocol HubProtocol { get; }
 
-		public ReadOnlySequence<byte> Buffer { get => memory_holder.GetSequence(); }
+		public ReadOnlySequence<byte> Buffer { get => memory_holder?.Sequence ?? throw new ObjectDisposedException(GetType().FullName); }
 
 		public ChannelWriter<HubMessage> Writer { get; }
 
-		internal ParsingAggreatedMessageState(BLiveProtocol hubProtocol, 
+		internal ParsingAggregatedMessageState(BLiveProtocol hubProtocol, 
 			ChannelWriter<HubMessage> writer, 
-			MemoryBufferWriter.WrittenSequence memoryHolder, 
+			TransferrableMemoryBuffer memoryHolder, 
 			IInvocationBinder binder)
 		{
 			HubProtocol = hubProtocol;
@@ -34,7 +35,7 @@ namespace DanmakuR.Protocol
 			{
 				if (disposing)
 				{
-					memory_holder.Dispose();
+					memory_holder?.Dispose();
 					memory_holder = default;
 				}
 

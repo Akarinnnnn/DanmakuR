@@ -2,7 +2,7 @@
 
 public partial class BLiveProtocol
 {
-	public static async Task HandleAggreatedMessages(ParsingAggreatedMessageState state)
+	public static async Task HandleAggreatedMessages(ParsingAggregatedMessageState state)
 	{
 		var input = state.Buffer;
 		var writer = state.Writer;

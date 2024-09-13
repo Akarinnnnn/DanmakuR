@@ -76,8 +76,7 @@ namespace DanmakuR.Protocol
 		{
 			SequencePosition spos = buffer.Start;
 			using BrotliDecoder decoder = new();
-			OperationStatus decompressStatus;
-			Unsafe.SkipInit(out decompressStatus);
+			OperationStatus decompressStatus = OperationStatus.DestinationTooSmall;
 
 			while (buffer.TryGet(ref spos, out var mem))
 			{

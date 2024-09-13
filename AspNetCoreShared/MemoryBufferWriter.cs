@@ -362,10 +362,69 @@ internal sealed class MemoryBufferWriter : Stream, IBufferWriter<byte>
         public readonly List<CompletedBuffer> Segments;
         private readonly int _bytesWritten;
 
+        private class WrittenBufferSegment : ReadOnlySequenceSegment<byte>
+        {
+            internal static (WrittenBufferSegment, WrittenBufferSegment) CreateSegmentChainFrom(List<CompletedBuffer> segments)
+            {
+                Debug.Assert(segments.Count >= 2, "Too less segments, should not to create segments chain.");
+
+                WrittenBufferSegment? start = null;
+                WrittenBufferSegment? current = null;
+
+                long runningIndex = 0;
+
+                foreach (var segment in segments)
+                {
+                    WrittenBufferSegment newSegment = new WrittenBufferSegment
+                    {
+                        Memory = segment.Buffer.AsMemory(0, segment.Length),
+                        RunningIndex = runningIndex
+                    };
+
+                    runningIndex += segment.Length;
+
+                    if (current != null)
+                    {
+                        current.Next = newSegment;
+                    }
+
+                    current = newSegment;
+                    start ??= newSegment;
+                }
+
+                Debug.Assert(start != null && current != null, "Race condition?");
+                return (start!, current!);
+            }
+        }
+
         public WrittenBuffers(List<CompletedBuffer> segments, int bytesWritten)
         {
             Segments = segments;
             _bytesWritten = bytesWritten;
+        }
+
+        public ReadOnlySequence<byte> Sequence
+        {
+            get
+            {
+                switch (Segments.Count)
+                {
+                    case 1:
+                    {
+                        var onlyBuffer = Segments[0];
+                        return new(onlyBuffer.Buffer, 0, onlyBuffer.Length);
+                    }
+                    case 0:
+                    {
+                        return default;
+                    }
+                    default:
+                    {
+                        (var start, var end) = WrittenBufferSegment.CreateSegmentChainFrom(Segments);
+                        return new(start, 0, end, end.Memory.Length);
+                    }
+                }
+            }
         }
 
         public int ByteLength => _bytesWritten;
