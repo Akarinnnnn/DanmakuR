@@ -16,9 +16,9 @@ public partial class BLiveProtocol
 		public static partial void InvalidData(ILogger logger);
 
 		[LoggerMessage(4, LogLevel.Warning, "消息json最外层含有未知属性{propertyName}", EventName = "UnreconizedInvocationProperty")]
-		public static partial void UnreconizedInvocationProperty(ILogger logger, string propertyName);
+		public static partial void UnrecognizedInvocationProperty(ILogger logger, string propertyName);
 
-		[LoggerMessage(5, LogLevel.Warning, "Json不符合格式", EventName = "InvalidJson")]
+		[LoggerMessage(5, LogLevel.Warning, "Json不符合格式", EventName = "NotAnInvocation")]
 		public static partial void NotAnInvocation(ILogger logger);
 
 	}

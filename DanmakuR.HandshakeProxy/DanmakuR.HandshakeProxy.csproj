@@ -1,14 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
   <ItemGroup>
-	<Compile Include="$(SharedSourceRoot)DuplexPipe.cs" Link="Shared\DuplexPipe.cs" />
-    <PackageReference Include="Microsoft.AspNetCore.Connections.Abstractions" Version="7.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="7.0.0" />
+    <Compile Include="$(SharedSourceRoot)DuplexPipe.cs" Link="Shared\DuplexPipe.cs" />
+    <PackageReference Include="Microsoft.AspNetCore.Connections.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
   </ItemGroup>
-
 </Project>

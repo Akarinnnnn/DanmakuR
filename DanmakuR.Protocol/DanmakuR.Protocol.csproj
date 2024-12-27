@@ -1,34 +1,29 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
-	<PropertyGroup>
-		<ImplicitUsings>enable</ImplicitUsings>
-		<Nullable>enable</Nullable>
-		<OutputType>Library</OutputType>
-	</PropertyGroup>
-
-	<ItemGroup>
-		<InternalsVisibleTo Include="DanmakuR.Protocol.Tests" />
-		<InternalsVisibleTo Include="DanmakuRTests" />
-		<PackageReference Include="Microsoft.AspNetCore.SignalR.Common" Version="7.0.2" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Compile Include="$(SharedSourceRoot)*.cs" Link="Shared\%(Filename)%(Extension)" />
-		<Compile Remove="D:\src\DanmakuR\AspNetCoreShared\BufferSegment.cs" />
-		<Compile Update="Resources\SR.Designer.cs">
-			<DependentUpon>SR.resx</DependentUpon>
-			<DesignTime>True</DesignTime>
-			<AutoGen>True</AutoGen>
-		</Compile>
-	</ItemGroup>
-
-	<ItemGroup>
-		<EmbeddedResource Update="Resources\SR.resx">
-			<SubType>Designer</SubType>
-			<LastGenOutput>SR.Designer.cs</LastGenOutput>
-			<Generator>ResXFileCodeGenerator</Generator>
-		</EmbeddedResource>
-	</ItemGroup>
-
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="DanmakuR.Protocol.Tests" />
+    <InternalsVisibleTo Include="DanmakuRTests" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Common" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(SharedSourceRoot)*.cs" Link="Shared\%(Filename)%(Extension)" />
+    <Compile Remove="D:\src\DanmakuR\AspNetCoreShared\BufferSegment.cs" />
+    <Compile Update="Resources\SR.Designer.cs">
+      <DependentUpon>SR.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Resources\SR.resx">
+      <SubType>Designer</SubType>
+      <LastGenOutput>SR.Designer.cs</LastGenOutput>
+      <Generator>ResXFileCodeGenerator</Generator>
+    </EmbeddedResource>
+  </ItemGroup>
 </Project>

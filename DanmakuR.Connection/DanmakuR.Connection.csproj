@@ -1,22 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
-	<PropertyGroup>
-		<ImplicitUsings>enable</ImplicitUsings>
-		<Nullable>enable</Nullable>
-		<OutputType>Library</OutputType>
-	</PropertyGroup>
-
-	<ItemGroup>
-		<PackageReference Include="Microsoft.AspNetCore.Http.Connections.Client" Version="6.0.5" />
-		<PackageReference Include="Microsoft.Extensions.Configuration" Version="2.1.0" />
-		<InternalsVisibleTo Include="DanmakuRTests" />
-		<Compile Include="$(SharedSourceRoot)DuplexPipe.cs" Link="Shared\DuplexPipe.cs" />
-
-	</ItemGroup>
-
-	<ItemGroup>
-	  <ProjectReference Include="..\DanmakuR.HandshakeProxy\DanmakuR.HandshakeProxy.csproj" />
-	  <ProjectReference Include="..\DanmakuR.Protocol\DanmakuR.Protocol.csproj" />
-	</ItemGroup>
-
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Http.Connections.Client" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <InternalsVisibleTo Include="DanmakuRTests" />
+    <Compile Include="$(SharedSourceRoot)DuplexPipe.cs" Link="Shared\DuplexPipe.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DanmakuR.HandshakeProxy\DanmakuR.HandshakeProxy.csproj" />
+    <ProjectReference Include="..\DanmakuR.Protocol\DanmakuR.Protocol.csproj" />
+  </ItemGroup>
 </Project>

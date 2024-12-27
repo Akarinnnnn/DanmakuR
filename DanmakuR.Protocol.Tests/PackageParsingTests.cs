@@ -5,20 +5,17 @@ using static DanmakuR.Protocol.BLiveMessageParser;
 
 namespace DanmakuR.Protocol.Tests
 {
-	public class ProtocolTest
+	public class PackageParsingTests
 	{
-		private readonly BLiveProtocol protocol;
-		private readonly byte[] brPayload;
 		private readonly byte[] contigousPackages;
 
 		internal const string MsgSamplesPath = "./data/MsgSamples/";
 		private const int NextPackageIndex = 884;
 
-		public ProtocolTest(BLiveProtocol protocol)
+		public PackageParsingTests()
 		{
-			this.protocol = protocol;
+			//this.protocol = protocol;
 			contigousPackages = File.ReadAllBytes(MsgSamplesPath + "nested.br.bin");
-			brPayload = File.ReadAllBytes(MsgSamplesPath + "BrotliPayload/msgpayload.br");
 		}
 
 		[Fact]

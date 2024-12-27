@@ -12,12 +12,12 @@ using System.IO.Pipelines;
 namespace DanmakuRTests.Compression
 {
 	[TestClass]
-	public class CompressionTests
+	public class BrotliCompressionTests
 	{
 		[TestInitialize]
 		public void PrepareEnvironment()
 		{
-			Environment.CurrentDirectory = Path.GetDirectoryName(typeof(CompressionTests).Assembly.Location)!;
+			Environment.CurrentDirectory = Path.GetDirectoryName(typeof(BrotliCompressionTests).Assembly.Location)!;
 		}
 
 		[DataRow("data/BDanmakuProtocol.cs")]
@@ -46,6 +46,14 @@ namespace DanmakuRTests.Compression
 				ReadOnlySequence<byte> broken = new(File.ReadAllBytes(filename));
 				broken.DecompressBrotli(new ArrayBufferWriter<byte>(5555));
 			});
+			Assert.ThrowsException<InvalidDataException>(() =>
+			{
+                ArrayBufferWriter<byte> writer = new(5555);
+                byte[] brBroken = File.ReadAllBytes(filename + ".broken.br");
+
+                ReadOnlySequence<byte> seq = new(brBroken);
+                seq.DecompressBrotli(writer);
+            });
 		}
 
 		private sealed class Segment : ReadOnlySequenceSegment<byte>
