@@ -3,13 +3,17 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace DanmakuR.Connection;
 
-public abstract class WrappedService<TService>
+[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
+public abstract class WrappedService<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] TService>
 {
 	public abstract TService GetRequiredService();
 	public abstract TService? GetService();
 }
 
-public class WrappedService<TService, TImpl> : WrappedService<TService> where TImpl : notnull, TService
+[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
+public class WrappedService<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] TService, 
+	[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] TImpl>
+	: WrappedService<TService> where TImpl : notnull, TService
 {
 	private readonly IServiceProvider sp;
 
@@ -29,16 +33,12 @@ public class WrappedService<TService, TImpl> : WrappedService<TService> where TI
 	}
 }
 
-public class WrappedInstance<TService> : WrappedService<TService>
+[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+public class WrappedInstance<TService>([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+	object impl) : WrappedService<TService>
 	where TService : notnull
 {
-	private readonly object impl;
-
-	[RequiresUnreferencedCode("反射引用，见下方Wrap")]
-	public WrappedInstance(object impl)
-	{
-		this.impl = impl;
-	}
+	private readonly object impl = impl;
 
 	public override TService GetRequiredService()
 	{
@@ -53,31 +53,37 @@ public class WrappedInstance<TService> : WrappedService<TService>
 
 public static class WrappingServicesExtensions
 {
-	private static readonly Type wrapperType = typeof(WrappedService<>);
-	private static readonly Type wrapperImplType = typeof(WrappedService<,>);
+	private static readonly Type abstractWrapperType = typeof(WrappedService<>);
+	private static readonly Type wrappedConstructorServiceType = typeof(WrappedService<,>);
+	private static readonly Type wrappedInstanceServiceType = typeof(WrappedInstance<>);
+
 	public static IServiceCollection Wrap(this IServiceCollection services, Type beingWrappedType)
 	{
-		foreach (var sd in services.Take(services.Count))
+		for (int i = 0; i < services.Count; i++)
 		{
+			ServiceDescriptor sd = services[i];
 			if (sd.ServiceType == beingWrappedType)
 			{
-				var newServiceType = wrapperType.MakeGenericType(beingWrappedType);
+				var newServiceType = abstractWrapperType.MakeGenericType(beingWrappedType);
 
 				if (sd.ImplementationType != null)
 				{
-					var newImplType = wrapperImplType.MakeGenericType(beingWrappedType, sd.ImplementationType);
+					var newImplType = wrappedConstructorServiceType.MakeGenericType(beingWrappedType, sd.ImplementationType);
 					services.Add(new ServiceDescriptor(newServiceType, newImplType, sd.Lifetime));
 					services.Add(new ServiceDescriptor(sd.ImplementationType, sd.ImplementationType, sd.Lifetime));
+					services[i] = new ServiceDescriptor(sd.ServiceType, (IServiceProvider sp) => sp.GetRequiredService(sd.ImplementationType), sd.Lifetime);
 				}
 				else if (sd.ImplementationInstance != null)
 				{
-					services.AddSingleton(newServiceType, Activator.CreateInstance(newServiceType, sd.ImplementationInstance)!);
+					Type wrappedInstanceType = wrappedInstanceServiceType.MakeGenericType(sd.ServiceType);
+					services.AddSingleton(newServiceType, Activator.CreateInstance(wrappedInstanceType, sd.ImplementationInstance)!);
 				}
 				else if (sd.ImplementationFactory != null)
 				{
+					Type wrappedInstanceType = wrappedInstanceServiceType.MakeGenericType(sd.ServiceType);
 					services.Add(new ServiceDescriptor(
 						newServiceType, 
-						sp => Activator.CreateInstance(newServiceType, sd.ImplementationFactory(sp))!,
+						sp => Activator.CreateInstance(wrappedInstanceType, sp.GetRequiredService(sd.ServiceType))!,
 						sd.Lifetime
 					));
 				}
