@@ -27,7 +27,7 @@ internal enum OpCode : int
 [StructLayout(LayoutKind.Sequential, Size = 16)]
 internal struct FrameHeader
 {
-	private const int ClDefaultSequence = Constants.WS_HEADER_DEFAULT_SEQUENCE;
+	private const int ClientDefaultSequence = Constants.WS_HEADER_DEFAULT_SEQUENCE;
 
 	public FrameHeader()
 	{
@@ -38,20 +38,20 @@ internal struct FrameHeader
 	public short HeaderLength = 16;
 	public short _version = 0;
 	public int _opcode = 0;
-	public int SequenceId = ClDefaultSequence;
+	public int SequenceId = ClientDefaultSequence;
 
 
 	public OpCode OpCode
 	{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		get => (OpCode)_opcode;
+		readonly get => (OpCode)_opcode;
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		set => _opcode = (int)value;
 	}
 	public FrameVersion Version
 	{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		get => (FrameVersion)_version;
+		readonly get => (FrameVersion)_version;
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		set => _version = (short)value;
 	}

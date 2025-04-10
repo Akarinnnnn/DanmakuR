@@ -1,13 +1,9 @@
-﻿using static DanmakuR.Protocol.WellKnownMethods;
-using static DanmakuR.Protocol.InvocationJsonHelper;
-
-using System.Diagnostics.CodeAnalysis;
+﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR.Protocol;
 using System.Runtime.ExceptionServices;
 using System.Text.Json;
-using Microsoft.AspNetCore.Internal;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.AspNetCore.SignalR.Protocol;
-using System.Collections.Immutable;
+using static DanmakuR.Protocol.InvocationJsonHelper;
+using static DanmakuR.Protocol.WellKnownMethods;
 
 namespace DanmakuR.Protocol;
 
@@ -37,30 +33,30 @@ partial class BLiveProtocol
 		string? cmdName = null;
 		try
 		{
-			// 
+			//
 			JsonDocument fullData = JsonDocument.ParseValue(ref reader);
 			cmdName = fullData.RootElement.GetProperty(TextCmd.EncodedUtf8Bytes).GetString()
 					?? throw new InvalidDataException("cmd为空");
-			
+
 			IReadOnlyList<Type> cmdHandlerArgs = binder.GetParameterTypes(cmdName);
 
 			if (cmdHandlerArgs.Count == 1) // 已注册对应cmd的处理器
 			{
 				using (fullData)
 				{
-					msg = new InvocationMessage(cmdName, new object?[] { JsonSerializer.Deserialize(
-						fullData, cmdHandlerArgs[0], optionsMonitor.CurrentValue.SerializerOptions)
-					});
+					msg = new InvocationMessage(cmdName, [
+						fullData.Deserialize(cmdHandlerArgs[0], optionsMonitor.CurrentValue.SerializerOptions)
+					]);
 				}
 			}
-			else if(cmdHandlerArgs.Count == 0) // 未注册，转交给默认处理器
+			else if (cmdHandlerArgs.Count == 0) // 未注册，转交给默认处理器
 			{
 				AssertMethodParamTypes(binder, ProtocolOnAggreatedMessage.Name, ProtocolOnAggreatedMessage.ParamTypes);
-				msg = new InvocationMessage(OnMessageJsonDocument.Name, new object?[] { cmdName, fullData });
+				msg = new InvocationMessage(OnMessageJsonDocument.Name, [cmdName, fullData]);
 			}
-			else if(cmdHandlerArgs.Count > 1)
+			else if (cmdHandlerArgs.Count > 1)
 			{
-				throw new NotSupportedException();
+				throw new NotSupportedException("事件处理器只能使用一个方法参数接收事件");
 			}
 			else
 			{

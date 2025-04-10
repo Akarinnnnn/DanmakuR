@@ -38,15 +38,19 @@ public partial class BLiveProtocol : IHubProtocol
 	};
 	private readonly Channel<HubMessage> hubmessage_channel = Channel.CreateUnbounded<HubMessage>(channel_options);
 
+	private ChannelReader<HubMessage> stackedMessageReader;
+
+
 	/// <summary>
 	/// 
 	/// </summary>
 	/// <param name="opt"></param>
 	/// <remarks>还是建议使用<see cref="Microsoft.Extensions.DependencyInjection"/>而不是直接<see langword="new"/>一个</remarks>
-	public BLiveProtocol(IOptionsMonitor<BLiveOptions> opt, ILoggerFactory loggerFactory)
+	public BLiveProtocol(IOptionsMonitor<BLiveOptions> opt, ILogger<BLiveProtocol> logger)
 	{
 		optionsMonitor = opt;
-		logger = loggerFactory.CreateLogger<BLiveProtocol>();
+		this.logger = logger;
+		stackedMessageReader = hubmessage_channel.Reader;
 	}
 
 	/// <inheritdoc/>
@@ -67,7 +71,7 @@ public partial class BLiveProtocol : IHubProtocol
 	/// <inheritdoc/>
 	public bool TryParseMessage(ref ReadOnlySequence<byte> input, IInvocationBinder binder, [NotNullWhen(true)] out HubMessage? message)
 	{
-		if (hubmessage_channel.Reader.TryRead(out message))
+		if (stackedMessageReader.TryRead(out message))
 			return true;
 
 		return ParseMessageCore(binder, out message, ref input);
