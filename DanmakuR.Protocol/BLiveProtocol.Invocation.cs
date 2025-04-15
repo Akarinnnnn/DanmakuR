@@ -51,7 +51,7 @@ partial class BLiveProtocol
 			}
 			else if (cmdHandlerArgs.Count == 0) // 未注册，转交给默认处理器
 			{
-				AssertMethodParamTypes(binder, ProtocolOnAggreatedMessage.Name, ProtocolOnAggreatedMessage.ParamTypes);
+				AssertMethodParamTypes(binder, OnMessageJsonDocument.Name, OnMessageJsonDocument.ReadonlyParamTypes);
 				msg = new InvocationMessage(OnMessageJsonDocument.Name, [cmdName, fullData]);
 			}
 			else if (cmdHandlerArgs.Count > 1)

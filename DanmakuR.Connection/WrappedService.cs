@@ -59,19 +59,24 @@ public static class WrappingServicesExtensions
 
 	public static IServiceCollection Wrap(this IServiceCollection services, Type beingWrappedType)
 	{
+		var newServiceType = abstractWrapperType.MakeGenericType(beingWrappedType);
+
 		for (int i = 0; i < services.Count; i++)
 		{
 			ServiceDescriptor sd = services[i];
+			if (sd.ServiceType == newServiceType)
+				// 已经包装过，本方案无法处理高阶代理
+				throw new InvalidOperationException($"类型{beingWrappedType.Name}已经被包装一次，无法继续包装本类型");
+
 			if (sd.ServiceType == beingWrappedType)
 			{
-				var newServiceType = abstractWrapperType.MakeGenericType(beingWrappedType);
 
 				if (sd.ImplementationType != null)
 				{
 					var newImplType = wrappedConstructorServiceType.MakeGenericType(beingWrappedType, sd.ImplementationType);
-					services.Add(new ServiceDescriptor(newServiceType, newImplType, sd.Lifetime));
+					services[i] = new ServiceDescriptor(newServiceType, newImplType, sd.Lifetime);
+					services.Add(new ServiceDescriptor(sd.ServiceType, (IServiceProvider sp) => sp.GetRequiredService(sd.ImplementationType), sd.Lifetime));
 					services.Add(new ServiceDescriptor(sd.ImplementationType, sd.ImplementationType, sd.Lifetime));
-					services[i] = new ServiceDescriptor(sd.ServiceType, (IServiceProvider sp) => sp.GetRequiredService(sd.ImplementationType), sd.Lifetime);
 				}
 				else if (sd.ImplementationInstance != null)
 				{

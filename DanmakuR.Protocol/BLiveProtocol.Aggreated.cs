@@ -10,7 +10,7 @@ public partial class BLiveProtocol
 		var binder = state.Binder;
 		using (state)
 		{
-			while (!input.IsEmpty && protocol.ParseMessageCore( binder, out var message, ref input))
+			while (!input.IsEmpty && protocol.ParseMessageCore(binder, out var message, ref input))
 			{
 				await writer.WriteAsync(message);
 			}

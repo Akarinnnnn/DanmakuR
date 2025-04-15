@@ -135,12 +135,12 @@ public partial class BLiveProtocol : IHubProtocol
 	{
 		try
 		{
-			AssertMethodParamTypes(binder, WellKnownMethods.ProtocolOnAggreatedMessage.Name, WellKnownMethods.ProtocolOnAggreatedMessage.ParamTypes);
-			message = new InvocationMessage(WellKnownMethods.ProtocolOnAggreatedMessage.Name, [state]);
+			AssertMethodParamTypes(binder, WellKnownMethods.ProtocolOnAggregatedMessage.Name, WellKnownMethods.ProtocolOnAggregatedMessage.ReadonlyParamTypes);
+			message = new InvocationMessage(WellKnownMethods.ProtocolOnAggregatedMessage.Name, [state]);
 		}
 		catch (BindingFailureException ex)
 		{
-			message = new InvocationBindingFailureMessage(null, WellKnownMethods.ProtocolOnAggreatedMessage.Name, ExceptionDispatchInfo.Capture(ex));
+			message = new InvocationBindingFailureMessage(null, WellKnownMethods.ProtocolOnAggregatedMessage.Name, ExceptionDispatchInfo.Capture(ex));
 		}
 
 		return true;
@@ -204,7 +204,7 @@ public partial class BLiveProtocol : IHubProtocol
 		}
 	}
 
-	private static void AssertMethodParamTypes(IInvocationBinder binder, string methodName, Type[] types)
+	private static void AssertMethodParamTypes(IInvocationBinder binder, string methodName, IReadOnlyList<Type> types)
 	{
 		var actualTypes = binder.GetParameterTypes(methodName);
 		if (!types.SequenceEqual(actualTypes))
