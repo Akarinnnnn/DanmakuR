@@ -1,6 +1,9 @@
 # DanmakuR
 通过`HubConnection`连接到b站直播间弹幕信息流，传输方式可以是`Websocket`或`TCP`之一。
 
+## 放弃维护
+现在（2025.7.17）这东西用不了了
+
 ## 快速上手
 首先，通过nuget查找并安装安装`DanmakuR`包。  
 
